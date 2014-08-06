@@ -21,8 +21,11 @@ my $attrList = '';
 my @extraArgs;
 
 # names of directories
-my $poolDir = "./Pools";
-my $assetDir = "./Assets";
+my $poolDir = "Pools";
+my $assetDir = "Assets";
+
+# a constant meaning an entry is at the top of a tree
+my $topLevel = '__TOP_LEVEL_NO_PARENT';
 
 foreach my $arg (@ARGV) {
 	if ($arg =~ /^-+h(elp)*$/)          { doArgs(); exit 0; }
@@ -114,10 +117,86 @@ sub connectAssets {
 }
 
 # simple list of what assets are in what - also applies to pools
+# if a given Pools/X contains an asset Y, and Pools/Y exists,
+# then Pools/Y is a child of Pools/X
 sub listAssets {
+	my $reportHash;
+	my $poolHash;
+
+	# First, build a hash of pools:
+	#   reportHash->{datacenter01} = top
+	#   reportHash->{switch01} = top
+	#   reportHash->{db} = top
+	#
+	# Next, get assets in each:
+	#   datacenter01 children = switch01
+	#   switch01 children = server01..server03
+	#   db children = server01
+	#
+	# Next, iterate through assets of a pool. if poolHash->{pool.childN}
+	# exists, then pool.childN is a pool, thus:
+	#   reportHash->{pool}->{children} = child01
+	#   reportHash->{child01} = pool
+
 	foreach my $listDest (@extraArgs) {
 		if ($verbose) { print STDERR " - Traversing $listDest\n"; }
-		system ("ls -1 $listDest");
+
+		# we're checking if they're checking top-level pools or some
+		# deeply-nested object. deeply-nested ones we won't worry about
+		# hierarchies
+		if ($listDest =~ /^$poolDir\/*$/) {
+			# first collect all top-level pool names, some of which might
+			# be children of others
+			my @poolList = split(/\n/, `ls -1 $listDest`);
+
+			# put the list of top-level pools into the report hash...
+			foreach my $currPool (@poolList) {
+				$reportHash->{$currPool}->{'parent'} = $topLevel;
+			}
+
+			# second collect all assets inside the top-level pool names
+			# and if they match top-level pool, create two-way link between
+			# them in the hash
+			foreach my $currPool (@poolList) {
+				my @assetList = split(/\n/, `ls -1 $listDest/$currPool`);
+
+				foreach my $oneAsset (@assetList) {
+					if (defined $reportHash->{$oneAsset}) {
+						if ($verbose) { print STDERR "   - setting $currPool --> $oneAsset parent/child\n"; }
+						$reportHash->{$oneAsset}->{'parent'} = $currPool;
+						$reportHash->{$currPool}->{'children'} .= "$oneAsset,";
+					}
+				}
+			}
+
+			# third, output the hash
+			outputHashTree ($reportHash, $topLevel, 0);
+		} else {
+			system ("ls -1 $listDest");
+		}
+	}
+
+}
+
+# traverse a tree struct implemented inside a hash
+sub outputHashTree {
+	my $hashToTraverse = shift;
+	my $rootLevel = shift;
+	my $indent = shift;
+
+	my $leadSpaces = '';
+	for (my $i=0; $i < $indent; $i++) {
+		$leadSpaces .= "  ";
+	}
+	$indent++;
+
+	foreach my $parentKey (sort keys %{$hashToTraverse}) {
+		if ($hashToTraverse->{$parentKey}->{'parent'} eq $rootLevel) {
+			print "$leadSpaces$parentKey\n";
+			if (defined $hashToTraverse->{$parentKey}->{'children'}) {
+				outputHashTree ($hashToTraverse, $parentKey, $indent);
+			}
+		}
 	}
 }
 
