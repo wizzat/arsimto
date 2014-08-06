@@ -12,7 +12,7 @@ The problem:
 1. I have thousands of assets.
 2. The assets are related in multiple ways.
 3. What are all the assets related to each other?
-4. What are some of the attributes around the asset?
+4. What is some data about the asset?
 
 The solution:
 =============
@@ -27,15 +27,17 @@ There is a directory Assets/ that contains one directory per asset. Inside the [
 Pools
 =====
 
-There is a directory Pools/ that contains one directory per logical grouping. Inside the <pool>/ directory are symlinks to each Assets/[asset]/ that belong to that pool.
+There is a directory Pools/ that contains one directory per logical grouping. Inside the <pool>/ directory are symlinks to each Assets/[asset]/ that belong to that pool. It is possible for a pool to contain another pool (that is, to be a grouping of pools).
 
 Relationships
 =============
 
-A given pool should be able to contain another pool. For example, a data center is a pool. A rack is a pool contained within a data center. A switch is a pool contained within a rack. A pool can also be an asset, in the case of a switch, for example. Or, if you're the data center owner, a rack, an aisle, a cage, etc.
+A given pool can contain another pool. For example, a data center is a pool. A rack is a pool contained within a data center. Some pools are purely logical, such as "Databases" or "WWW".
 
-Examples
-========
+Typically we have pools containing assets. For example, the "Databases" pool containing "db01".
+
+Examples / Tutorial
+===================
 
 You can get this example output simply by running the tool with no arguments, but it is duplicated here for completeness and for those who want to understand the tool before downloading it.
 
@@ -89,3 +91,4 @@ Now we want to know about all the WWW servers with their IP addresses and NIC ca
     server01	192.168.1.101	10Gb
 
 That concludes the examples/tutorial section.
+
