@@ -38,7 +38,7 @@ Examples
 ========
 
     arsimto add --asset=server01 --pools=WWW,Production,SF --attrs=ip:192.168.1.1,ram:32G,cpus:8,storage:2TB
-    arsimto add --asset=switch01 --attrs=brand:cisco+ports:48
+    arsimto add --asset=switch01 --attrs=brand:cisco,ports:48
     arsimto connect --assets=switch01,server01
 
 This would create the following directory structure:
