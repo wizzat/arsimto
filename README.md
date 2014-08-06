@@ -44,11 +44,38 @@ You can get this example output simply by running the tool with no arguments, bu
     arsimto add --assets=server01 --attrs=ip:192.168.1.101
     arsimto add --assets=server02 --attrs=ip:192.168.1.102
     arsimto add --assets=server03 --attrs=ip:192.168.1.103
+    
+Now you've created a basic switch01 with 3 servers attached. You can see how things look so far with some "arsimto list" commands:
+
+    arsimto list Pools/switch01/
+    server01
+    server02
+    server03
+
+Try also "arsimto list Assets" - this will list every asset you have.
+
+Let's connect up those servers to the switch. And while we're at it, add "db" and "www" pools.
+    
     arsimto connect --assets=switch01,server01,server02,server03
     arsimto connect --assets=www,server01
     arsimto connect --assets=db,server02,server03
-    arsimto list Assets
-    arsimto list Pools/poolName
-    arsimto list Pools/poolName --attrs=name,ip
-    arsimto report Pools/db --attrs=ram,ip
+
+Use "arsimto list" to see what pools you have.
+
+    arsimto list Pools/
+    db
+    switch01
+    www
+
+Let's start in on some reporting. We need a list of all database servers with their IP addresses and how much RAM they have available on them.
+
+    arsimto report Pools/db --attrs=ip,ram
+    server02	192.168.1.102	16GB
+    server03	192.168.1.103	16GB
+
+Now we want to know about all the WWW servers with their IP addresses and NIC capacity.
+    
     arsimto report Pools/www --attrs=ip,nic
+    server01	192.168.1.101	10Gb
+
+That concludes the examples/tutorial section.
