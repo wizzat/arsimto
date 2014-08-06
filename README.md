@@ -32,11 +32,31 @@ There is a directory Pools/ that contains one directory per logical grouping. In
 Relationships
 =============
 
-A given pool should be able to contain another pool. For example, a data center is a pool. A rack is a pool. A switch is a pool. A pool can also be an asset, in the case of a switch, for example. Or, if you're the data center owner, a rack, an aisle, a cage, etc.
+A given pool should be able to contain another pool. For example, a data center is a pool. A rack is a pool contained within a data center. A switch is a pool contained within a rack. A pool can also be an asset, in the case of a switch, for example. Or, if you're the data center owner, a rack, an aisle, a cage, etc.
 
 Examples
 ========
 
-  arsimto add --asset=server01 --pools=WWW,Production,SF --attrs=ip:192.168.1.1,ram:32G,cpus:8,storage:2TB
-  arsimto add --asset=switch01 --attrs=brand:cisco+ports:48
-  arsimto connect --assets=switch01,server01
+    arsimto add --asset=server01 --pools=WWW,Production,SF --attrs=ip:192.168.1.1,ram:32G,cpus:8,storage:2TB
+    arsimto add --asset=switch01 --attrs=brand:cisco+ports:48
+    arsimto connect --assets=switch01,server01
+
+This would create the following directory structure:
+
+    Assets/
+      server01/
+      switch01/
+    Pools/
+      WWW/
+      Production/
+      SF/
+      switch01/
+
+Inside the Assets/server01/ and switch01/ directories would be files corresponding to the attrs given. Inside WWW/, Production/, and SF/ directories would be a symlink to Assets/server01/. Inside the Pools/switch01/ directory would be a symlink to Assets/server01/.
+
+Note that the following are equivalent:
+
+    arsimto add --asset=server01 --pools=switch01
+    arsimto connect --assets=switch01,server01
+
+Because connecting two devices is equivalent to putting the second device into a pool named after the first.
