@@ -22,12 +22,12 @@ The Unix file system, with its directory structure and symlinking should have th
 Assets
 ======
 
-There is a directory Assets/ that contains one directory per asset. Inside the <asset>/ directory are files named "<variable>:<value>" for example "mac:32:a2:f3:c7:26:6a:20:f9:dd:a5:4e" or "ip:192.168.1.5".
+There is a directory Assets/ that contains one directory per asset. Inside the [asset]/ directory are files named "[variable]:[value]" for example "mac:32:a2:f3:c7:26:6a:20:f9:dd:a5:4e" or "ip:192.168.1.5".
 
 Pools
 =====
 
-There is a directory Pools/ that contains one directory per logical grouping. Inside the <pool>/ directory are symlinks to each Assets/<asset>/ that belong to that pool.
+There is a directory Pools/ that contains one directory per logical grouping. Inside the <pool>/ directory are symlinks to each Assets/[asset]/ that belong to that pool.
 
 Relationships
 =============
