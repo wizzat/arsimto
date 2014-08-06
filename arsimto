@@ -17,7 +17,7 @@ use warnings;
 my $mode = '';
 my $verbose = 0;
 my $assetList = '';
-my $attrList = '';
+my $dataList = '';
 my @extraArgs;
 
 # names of directories
@@ -28,17 +28,17 @@ my $assetDir = "Assets";
 my $topLevel = '__TOP_LEVEL_NO_PARENT';
 
 foreach my $arg (@ARGV) {
-	if ($arg =~ /^-+h(elp)*$/)          { doArgs(); exit 0; }
-	elsif ($arg =~ /^-+assets=(.+)$/)   { $assetList = $1; }
-	elsif ($arg =~ /^-+attrs=(.+)$/)    { $attrList = $1; }
-	elsif ($arg =~ /^-+v(erbose)*$/)     { $verbose = 1; }
+	if ($arg =~ /^-+h(elp)*$/)                  { doArgs(); exit 0; }
+	elsif ($arg =~ /^-+a(ssets)*=(.+)$/)        { $assetList = $2; }
+	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
+	elsif ($arg =~ /^-+v(erbose)*$/)            { $verbose = 1; }
 	elsif ($arg =~ /^add$|^connect$|^list$|^report$/)   { $mode = $arg; }
 	else { push (@extraArgs, $arg); }
 }
 
 # if they don't know what they're doing, help them
 unless ($mode) { doArgs() ; exit 0; }
-if ($verbose) { print "mode=$mode ; assetList=$assetList ; attrList=$attrList ; extraArgs=@extraArgs\n"; }
+if ($verbose) { print "mode=$mode ; assetList=$assetList ; dataList=$dataList ; extraArgs=@extraArgs\n"; }
 
 # determine the mode they're requesting and do the needful
 if ($mode eq 'add') {
@@ -54,39 +54,42 @@ if ($mode eq 'add') {
 sub doArgs {
 	print "usage: $0 [-v] [-h] <command>\n";
    	print "  --assets=<assetList>\n";
-	print "  [--attrs=<attrList>]\n";
+	print "  [--data=<dataList>]\n";
 	print "\n";
 	print "  -h       (This) help\n";
 	print "  -v       Verbose/debugging output\n";
 	print "\n";
 	print "Command 'add':\n";
-	print "  $0 add --assets=<assetName>[,<assetName>...] --attrs=n1:v1[,n2:v2,...,nN:vN]\n";
+	print "  $0 add --assets=<assetName>[,<assetName>...] --data=n1:v1[,n2:v2,...,nN:vN]\n";
 	print "Examples:\n";
-	print "  $0 add --assets=switch01 --attrs=ports:48\n";
-	print "  $0 add --assets=server01,server02,server03 --attrs=ram:16GB,disk:2048GB,nic:10Gb\n";
-	print "  $0 add --assets=server01 --attrs=ip:192.168.1.101\n";
-	print "  $0 add --assets=server02 --attrs=ip:192.168.1.102\n";
-	print "  $0 add --assets=server03 --attrs=ip:192.168.1.103\n";
+	print "  $0 add --assets=dc01   --data=capacity:5000\n";
+	print "  $0 add --assets=rack01   --data=U:48\n";
+	print "  $0 add --assets=switch01 --data=ports:48\n";
+	print "  $0 add --assets=server01,server02,server03 --data=ram:16GB,disk:2048GB,nic:10Gb\n";
+	print "  $0 add --assets=server01 --data=ip:192.168.1.101\n";
+	print "  $0 add --assets=server02 --data=ip:192.168.1.102\n";
+	print "  $0 add --assets=server03 --data=ip:192.168.1.103\n";
 	print "\n";
 	print "Command 'connect':\n";
 	print "  $0 connect --assets=<parentAsset>,<childAsset>[,<childAsset>...]\n";
 	print "Examples:\n";
+	print "  $0 connect --assets=dc01,rack01\n";
+	print "  $0 connect --assets=rack01,switch01\n";
 	print "  $0 connect --assets=switch01,server01,server02,server03\n";
 	print "  $0 connect --assets=www,server01\n";
 	print "  $0 connect --assets=db,server02,server03\n";
 	print "\n";
 	print "Command 'list':\n";
-	print "  $0 list <object> --attrs=n1[,n2...]\n";
+	print "  $0 list <object>\n";
 	print "Examples:\n";
 	print "  $0 list Assets\n";
 	print "  $0 list Pools/poolName\n";
-	print "  $0 list Pools/poolName --attrs=name,ip\n";
 	print "\n";
 	print "Command 'report':\n";
-	print "  $0 report <object> --attrs=n1[,n2...]\n";
+	print "  $0 report <object> --data=n1[,n2...]\n";
 	print "Examples:\n";
-	print "  $0 report Pools/db --attrs=ram,ip\n";
-	print "  $0 report Pools/www --attrs=ip,nic\n";
+	print "  $0 report --data=ram,ip Pools/db\n";
+	print "  $0 report --data=ip,nic Pools/www\n";
 	print "\n";
 }
 
@@ -95,8 +98,8 @@ sub addAssets {
 	foreach my $asset (split(/,/, $assetList)) {
 		if ($verbose) { print STDERR " + Adding asset $asset\n"; }
 		system ("mkdir -p $assetDir/$asset");
-		foreach my $attr (split(/,/, $attrList)) {
-			system ("touch $assetDir/$asset/$attr");
+		foreach my $data (split(/,/, $dataList)) {
+			system ("touch $assetDir/$asset/$data");
 		}
 	}
 }
@@ -109,7 +112,7 @@ sub connectAssets {
 
 		foreach my $childAsset (split(/,/, $childAssets)) {
 			if ($verbose) { print STDERR " + Connecting $parentAsset --> $childAsset\n"; }
-			system ("mkdir -p $poolDir/$parentAsset && cd $poolDir/$parentAsset && ln -sf ../../$assetDir/$childAsset ./");
+			system ("mkdir -p $poolDir/$parentAsset && cd $poolDir/$parentAsset && if [ -d ../../$assetDir/$childAsset ] ; then ln -sf ../../$assetDir/$childAsset ./ ; fi ; if [ -d ../$childAsset ] ; then ln -sf ../$childAsset ./ ; fi");
 		}
 	} else {
 		print STDERR " E Error: You must provide a list of assets to connect.\n";
@@ -175,7 +178,6 @@ sub listAssets {
 			system ("ls -1 $listDest");
 		}
 	}
-
 }
 
 # traverse a tree struct implemented inside a hash
@@ -200,26 +202,26 @@ sub outputHashTree {
 	}
 }
 
-# collect the attrs for every asset specified then dump it out
+# collect the data for every asset specified then dump it out
 sub reportAssets {
 	my $objectList = '';
 	my $reportHash;
 
-	# first collect all attributes of all assets in the pools specified
+	# first collect all data of all assets in the pools specified
 	foreach my $reportDest (@extraArgs) {
 		$objectList .= `find -L $reportDest -type f -name '*:*'`;
 	}
 
-	# next, grab out the attributes we want and put into a hash of assets
+	# next, grab out the data we want and put into a hash of assets
 	foreach my $oneLine (split(/\n/, $objectList)) {
 		if ($oneLine =~ /^.+\/(.+?)\/(.+?):(.+)$/) {
 			my $assetName = $1;
-			my $attrName = $2;
-			my $attrVal = $3;
+			my $dataName = $2;
+			my $dataVal = $3;
 
-			# if this attribute matches the list they want, put into report
-			if ($attrList =~ /\b$attrName\b/) {
-				$reportHash->{$assetName}->{$attrName} = $attrVal;
+			# if this data matches the list they want, put into report
+			if ($dataList =~ /\b$dataName\b/) {
+				$reportHash->{$assetName}->{$dataName} = $dataVal;
 			}
 		}
 	}
@@ -227,8 +229,12 @@ sub reportAssets {
 	# output the report
 	foreach my $assetName (sort keys %{$reportHash}) {
 		print "$assetName";
-		foreach my $attrName (split(/,/, $attrList)) {
-			print "\t" . $reportHash->{$assetName}->{$attrName};
+		foreach my $dataName (split(/,/, $dataList)) {
+			if (defined $reportHash->{$assetName}->{$dataName}) {
+				print "\t" . $reportHash->{$assetName}->{$dataName};
+			} else {
+				print "\t__UNDEF__";
+			}
 		}
 		print "\n";
 	}
