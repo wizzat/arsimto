@@ -37,26 +37,18 @@ A given pool should be able to contain another pool. For example, a data center 
 Examples
 ========
 
-    arsimto add --asset=server01 --pools=WWW,Production,SF --attrs=ip:192.168.1.1,ram:32G,cpus:8,storage:2TB
-    arsimto add --asset=switch01 --attrs=brand:cisco,ports:48
-    arsimto connect --assets=switch01,server01
+You can get this example output simply by running the tool with no arguments, but it is duplicated here for completeness and for those who want to understand the tool before downloading it.
 
-This would create the following directory structure:
-
-    Assets/
-      server01/
-      switch01/
-    Pools/
-      WWW/
-      Production/
-      SF/
-      switch01/
-
-Inside the Assets/server01/ and switch01/ directories would be files corresponding to the attrs given. Inside WWW/, Production/, and SF/ directories would be a symlink to Assets/server01/. Inside the Pools/switch01/ directory would be a symlink to Assets/server01/.
-
-Note that the following are equivalent:
-
-    arsimto add --asset=server01 --pools=switch01
-    arsimto connect --assets=switch01,server01
-
-Because connecting two devices is equivalent to putting the second device into a pool named after the first.
+    arsimto add --assets=switch01 --attrs=ports:48
+    arsimto add --assets=server01,server02,server03 --attrs=ram:16GB,disk:2048GB,nic:10Gb
+    arsimto add --assets=server01 --attrs=ip:192.168.1.101
+    arsimto add --assets=server02 --attrs=ip:192.168.1.102
+    arsimto add --assets=server03 --attrs=ip:192.168.1.103
+    arsimto connect --assets=switch01,server01,server02,server03
+    arsimto connect --assets=www,server01
+    arsimto connect --assets=db,server02,server03
+    arsimto list Assets
+    arsimto list Pools/poolName
+    arsimto list Pools/poolName --attrs=name,ip
+    arsimto report Pools/db --attrs=ram,ip
+    arsimto report Pools/www --attrs=ip,nic
