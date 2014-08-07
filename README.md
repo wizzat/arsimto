@@ -63,21 +63,21 @@ Try also "arsimto list Assets" - this will list every asset you have.
 
 Let's connect up those servers to the switch. And while we're at it, add "db" and "www" pools. And why not? Put rack01 into dc01 and switch01 into rack01.
     
-    arsimto connect --assets=dc01,rack01
-    arsimto connect --assets=rack01,switch01
-    arsimto connect --assets=www,server01
-    arsimto connect --assets=db,server02,server03
+    arsimto ln --assets=dc01,rack01
+    arsimto ln --assets=rack01,switch01
+    arsimto ln --assets=www,server01
+    arsimto ln --assets=db,server02,server03
 
 Use "arsimto list" to see what pools you have.
 
-    arsimto list Pools/
+    arsimto ls Pools/
     db
     dc01
       rack01
         switch01
     www
 
-This shows us the hierarchy of dc01 --> rack01 --> switch01, because when you "connect" a pool to another, they automatically create a hierarchy like this. Note that some objects, like rack01, might be both an asset an a pool. Other things, like "databases" would be only a logical pool.
+This shows us the hierarchy of dc01 --> rack01 --> switch01, because when you "connect" a pool to another, they automatically create a hierarchy like this. Note that some objects, like rack01, might be both an asset and a pool. Other things, like "databases" would be only a logical pool.
 
 Let's start in on some reporting. We need a list of all database servers with their IP addresses and how much RAM they have available on them.
 
@@ -91,4 +91,11 @@ Now we want to know about all the WWW servers with their IP addresses and NIC ca
     server01	192.168.1.101	10Gb
 
 That concludes the examples/tutorial section.
+
+Technical Notes
+===============
+
+Pools, although they can be nested, must still be globally unique names! Therefore, if the "Oregon" pool is inside the "AWS" pool, that disallows you from creating an "Oregon" pool inside the "Rackspace" pool. You may choose to put implied hierarchies into your pool names such as "AWS-Oregon" and "Rackspace-Oregon" for example.
+
+You can do a lot of exploration outside the tool. Everything is stored as directories and files in the CWD from where you run the tool. Also note this means two different users may not see the same view of things. You can edit the source code of arsimto to make the Pools/ and Assets/ directories be somewhere else (like /opt/arsimto/Pools/ and /opt/arsimto/Assets/ for example).
 
