@@ -26,7 +26,7 @@ my $poolDir = "Pools";
 my $assetDir = "Assets";
 
 # list of posible command sections
-my $cmdList = "add, ln, ls, mv, rm, report";
+my $cmdList = "add, ln, ls, mv, rename, report, rm";
 
 # a constant meaning an entry is at the top of a tree
 my $topLevel = '__TOP_LEVEL_NO_PARENT';
@@ -67,6 +67,8 @@ if ($mode eq 'add') {
 	mvAssets();
 } elsif ($mode eq 'rm') {
 	rmAssets();
+} elsif ($mode eq 'rename') {
+	renameAssets();
 } elsif ($mode eq 'report') {
 	reportAssets();
 }
@@ -161,8 +163,6 @@ sub doArgs {
 # add assets to the database
 sub addAssets {
 	foreach my $asset (split(/,/, $assetList)) {
-		print STDERR " + Adding asset $asset\n";
-
 		# make the dir for the asset to store its data
 		system ("mkdir -p $assetDir/$asset");
 
@@ -171,10 +171,13 @@ sub addAssets {
 			system ("touch $assetDir/$asset/$data");
 		}
 
+		print " - Added Asset $asset\n";
+
 		# TODO: use facter or something real
 		# if they want us to collect some info automagically...
 		if ($collectMode) {
-			if ($verbose) { print STDERR " + Collecting intIP\n"; }
+			print " - Collecting information about $asset via SSH...\n";
+			if ($verbose) { print STDERR "   - Collecting intIP\n"; }
 
 			my $ifConfig = `ssh $asset "ifconfig | grep addr:10"`;
 			my $intIP = "Unknown";
@@ -182,15 +185,15 @@ sub addAssets {
 				$intIP = $1;
 			}
 
-			if ($verbose) { print STDERR " + Collecting extIP\n"; }
+			if ($verbose) { print STDERR "   - Collecting extIP\n"; }
 			my $extIP=`ping -c 1 $asset | grep 'bytes of data' | awk -F '(' '{print \$2}' | awk -F ')' '{print \$1}'`;
 			chomp ($extIP);
 
-			if ($verbose) { print STDERR " + Collecting CPUcount\n"; }
+			if ($verbose) { print STDERR "   - Collecting CPUcount\n"; }
 			my $cpuCount = `ssh archive.or.aofk.net "cat /proc/cpuinfo | grep ^processor | wc -l"`;
 			chomp ($cpuCount);
 
-			if ($verbose) { print STDERR " + Collecting Memory\n"; }
+			if ($verbose) { print STDERR "   - Collecting Memory\n"; }
 			my $memory = "Unknown";
 			my $memUnits = "?";
 			my $memInfo = `ssh archive.or.aofk.net "cat /proc/meminfo | grep ^MemTotal"`;
@@ -209,8 +212,9 @@ sub addAssets {
 
 sub rmAssets {
 	foreach my $asset (split(/,/, $assetList)) {
-		if ($verbose) { print STDERR " + Removing asset $asset\n"; }
+		if ($verbose) { print STDERR " + Removing $asset from Assets $assetDir...\n"; }
 		system ("find $assetDir -name '$asset' -exec rm -rf {} \\; 2>/dev/null");
+		if ($verbose) { print STDERR " + Removing $asset from Pools $poolDir...\n"; }
 		system ("find $poolDir -name '$asset' -exec rm -rf {} \\; 2>/dev/null");
 		print " - Removed $asset from system.\n";
 	}
@@ -228,8 +232,8 @@ sub mvAssets {
 		$assetToMove =~ s/\/$//g;
 
 		if (-d $assetToMove && -d $destPool && $assetToMove ne $destPool) {
-			print STDERR "$assetToMove --> $destPool\n";
 			system ("mv $assetToMove $destPool");
+			print " - Moved Asset $assetToMove --> $destPool\n";
 		}
 	}
 }
@@ -241,8 +245,8 @@ sub connectAssets {
 		my $childAssets = $2;
 
 		foreach my $childAsset (split(/,/, $childAssets)) {
-			if ($verbose) { print STDERR " + Connecting $parentAsset --> $childAsset\n"; }
 			system ("mkdir -p $poolDir/$parentAsset && cd $poolDir/$parentAsset && if [ -d ../../$assetDir/$childAsset ] ; then ln -sf ../../$assetDir/$childAsset ./ ; fi ; if [ -d ../$childAsset ] ; then ln -sf ../$childAsset ./ ; fi");
+			print " - Connected $parentAsset --> $childAsset\n";
 		}
 	} else {
 		print STDERR " E Error: You must provide a list of assets to connect.\n";
@@ -388,5 +392,42 @@ sub reportAssets {
 		}
 		print "\n";
 	}
+}
+
+sub renameAssets {
+	my $assetToRename = shift (@extraArgs);
+	my $assetNewName = shift (@extraArgs);
+
+	# sanity check their input
+	if ($assetToRename =~ /\//) {
+		print STDERR " E You should only give the bare asset name without any pool prefixes.\n";
+		return 255;
+	}
+
+	if ($verbose) { print STDERR " - Locating all Pool objects linking to $assetDir/$assetToRename\n"; }
+	my $fileSystemNamesToRename = `find -L $poolDir -samefile $assetDir/$assetToRename`;
+
+	# first rename the asset itself
+	if (-e "$assetDir/$assetNewName") {
+		print STDERR " - Cowardly refusing to overwrite/break Asset $assetDir/$assetNewName.\n";
+		return 254;
+	} else {
+		if ($verbose) { print STDERR " - Moving $assetDir/$assetToRename --> $assetDir/$assetNewName\n"; }
+		system ("mv $assetDir/$assetToRename $assetDir/$assetNewName");
+	}
+
+	$fileSystemNamesToRename =~ s/\/$assetToRename//gs;
+	my @assetLocations = split (/\n/, $fileSystemNamesToRename);
+
+	foreach my $linkLoc (@assetLocations) {
+		if (-e "$linkLoc/$assetNewName") {
+			print STDERR " - Cowardly refusing to overwrite/break Pool link $linkLoc/$assetNewName.\n";
+		} else {
+			if ($verbose) { print STDERR " - Linking $assetDir/$assetNewName into $linkLoc and removing $assetToRename\n"; }
+			system ("cd $linkLoc && ln -s ../../$assetDir/$assetNewName ./ && rm $assetToRename");
+		}
+	}
+
+	print " - Renamed $assetToRename --> $assetNewName\n";
 }
 
