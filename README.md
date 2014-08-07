@@ -102,7 +102,7 @@ Technical Notes
 
 Pools, although they can be nested, must still be globally unique names! Therefore, if the "Oregon" pool is inside the "AWS" pool, that disallows you from creating an "Oregon" pool inside the "Rackspace" pool. You may choose to put implied hierarchies into your pool names such as "AWS-Oregon" and "Rackspace-Oregon" for example.
 
-You can do a lot of exploration outside the tool. Everything is stored as directories and files in the CWD from where you run the tool. Also note this means two different users will not see the same things if they are in different directories. You can edit the source code of arsimto to make the Pools/ and Assets/ directories be somewhere constant like /opt/arsimto/Pools/ and /opt/arsimto/Assets/, for example.
+You can do a lot of exploration outside the tool. Everything is stored as directories and files in the CWD from where you run the tool. It's suggested to keep these files in git or subversion so that users don't clobber each others' changes, and you don't have to worry about permissions of shared directories.
 
 The Unix filesystem is a tree structure. I am implementing an acyclic graph structure on top of the Unix filesystem by storing Pool names in a directory with symlinks to other Pools and Assets. If you create cycles in the graph (say dc01 :: switch01 :: dc01) then arsimto will be unhappy, and so will you be. If you think you have a case for a cycle in the graph, let's discuss it.
 

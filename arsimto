@@ -32,15 +32,15 @@ my $cmdList = "add, ln, ls, mv, rm, report";
 my $topLevel = '__TOP_LEVEL_NO_PARENT';
 my $vennMode = 'union';
 
-# no arguments passed in? long help.
+# no arguments passed in? short help.
 unless (scalar @ARGV) {
-	doArgs('long');
+	doArgs('short');
 	exit 255;
 }
 
 # parse input arguments. put anything unparsed onto @extraArgs
 foreach my $arg (@ARGV) {
-	if ($arg =~ /^-+h(elp)*$/)                  { doArgs('short'); exit 0; }
+	if ($arg =~ /^-+h(elp)*$/)                  { doArgs('long'); exit 0; }
 	elsif ($arg =~ /^-+a(ssets)*=(.+)$/)        { $assetList = $2; }
 	elsif ($arg =~ /^-+c(ollect)$/)             { $collectMode = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
@@ -52,7 +52,7 @@ foreach my $arg (@ARGV) {
 
 # if they don't know what they're doing but tried something, help them
 unless ($mode) {
-	print STDERR "Commands: $cmdList. Use -h for short help or no arguments for long help.\n";
+	print STDERR "Commands: $cmdList. Use -h for long help or no arguments for short help.\n";
 	exit 255;
 }
 
@@ -81,11 +81,10 @@ exit 0;
 sub doArgs {
 	my $helpLength = shift;
 
-	print "usage: $0 [-v] [-h] <command>\n";
-	print "  [--assets=<assetList>]\n";
-	print "  [--data=<dataList>]\n";
+	print "usage: $0 [-v] [-h] <command> [<assetObj>|<poolObj>]\n";
+	print "  [--assets=<assetList>] [--data=<dataList>]\n";
 	print "\n";
-	print "  -h        Short version help\n";
+	print "  -h        Long version help. Run without arguments for short help.\n";
 	print "  -v        Verbose/debugging output\n";
 	print "  <command> is one of $cmdList.\n";
 	print "\n";
@@ -129,6 +128,7 @@ sub doArgs {
 		print "  $0 ls Assets\n";
 		print "  $0 ls Pools/db\n";
 		print "  $0 ls Pools/db/server02\n";
+		print "  $0 ls Pools/db  Pools/www  Pools/dc01\n";
 	}
 	print "\n";
 	print "report :: \n";
@@ -156,8 +156,6 @@ sub doArgs {
 		print "Examples:\n";
 		print "  $0 rm --assets=server03\n";
 	}
-	print "\n";
-	print "Concise help: 'arsimto -h'. Detailed help: 'arsimto' without arguments.\n";
 }
 
 # add assets to the database
