@@ -32,70 +32,84 @@ There is a directory Assets/ that contains one directory per asset. Inside the [
 Pools
 =====
 
-There is a directory Pools/ that contains one directory per logical grouping. Inside the <pool>/ directory are symlinks to each Assets/[asset]/ that belong to that pool. It is possible for a pool to contain another pool (that is, to be a grouping of pools).
+There is a directory Pools/ that contains one directory per logical grouping. Inside the <pool>/ directory are symlinks to each Assets/[asset]/ that belong to that pool. It is possible for a pool to link to another pool (that is, to be a grouping of pools).
+
+Note that the pools aren't contained within each other. They're merely linked. The pool namespace is flat. When you do "arsimto ls Pools" the tool attempts to show you the linking relationships using indentation, which is traditionally used to show nesting. This can be confusing. If a better UI for indicating links is discovered, it will be implemented.
+
+Because links are implemented as symlinks within a directory, you can fool yourself by doing "arsimto ls Pools/GroupingPool/GroupedPool" and it will work. This helps reinforce the incorrect perception that there is nesting (aka Parent/Child) but such nesting does not exist. I apologize for this confusing aspect now.
 
 Relationships
 =============
 
-A given pool can contain another pool. For example, a data center is a pool. A rack is a pool contained within a data center. Some pools are purely logical, such as "Databases" or "WWW".
+A given pool can link to another pool. For example, a data center is a pool. A rack is a pool linked from the data center. Some pools are purely logical, such as "Databases" or "WWW". Others are physical, such as "Rack" or "Switch".
 
-Typically we have pools containing assets. For example, the "Databases" pool containing "db01".
+Pools can link to physical assets. For example, the "Databases" pool containing "db01". Pools can also link to other pools. For example, the "AWS" pool containing "OR" and "VA" (US-West and US-East names if you prefer the Amazon naming).
 
 Examples / Tutorial
 ===================
 
-You can get this example output simply by running the tool with no arguments, but it is duplicated here for completeness and for those who want to understand the tool before downloading it.
+If you run "arsimto -h" you will get a verbose help output including "Examples" commands that, when run in order, will create a very simple datacenter. Here we will do a slightly more-complex real-world setup with more assets. Let's begin by creating a number of assets:
 
-First, we will create several assets and connect some servers to a switch:
+    for i in {01..20} ; do arsimto add --assets=server-$i.or --data=ip:54.0.0.$i ; done
+    for i in {01..20} ; do arsimto add --assets=server-$i.sf --data=ip:54.0.1.$i ; done
 
-    arsimto add --assets=dc01   --data=capacity:5000
-    arsimto add --assets=rack01   --data=U:48
-    arsimto add --assets=switch01 --data=ports:48
-    arsimto add --assets=server01,server02,server03 --data=ram:16GB,disk:2048GB,nic:10Gb
-    arsimto add --assets=server01 --data=ip:192.168.1.101
-    arsimto add --assets=server02 --data=ip:192.168.1.102
-    arsimto add --assets=server03 --data=ip:192.168.1.103
-    arsimto connect --assets=switch01,server01,server02,server03
-    
-See how things look so far with an "arsimto list" command:
+Now we'll segregate them according to their purpose. We'll have some MySQLs, some WWWs, and some memcacheds. We'll add machine-specific data and put them into pools:
 
-    arsimto ls Pools/switch01/
-    server01
-    server02
-    server03
+    for dc in or sf ; do for i in {01..05} ; do arsimto add --assets=server-$i.$dc --data=disk:8tB,network:20gb,ram:64GB,cpus:24 ; arsimto ln --assets=mysql,server-$i.$dc ; done ; done
+    for dc in or sf ; do for i in {06..10} ; do arsimto add --assets=server-$i.$dc --data=disk:1tB,network:10gb,ram:8GB,cpus:8 ; arsimto ln --assets=www,server-$i.$dc ; done ; done
+    for dc in or sf ; do for i in {11..20} ; do arsimto add --assets=server-$i.$dc --data=disk:8gB,network:40gb,ram:32GB,cpus:4 ; arsimto ln --assets=memcached,server-$i.$dc ; done ; done
 
-Try also "arsimto ls Assets" - this will list every asset you have.
+Now we have two datacenters, we should reflect that. We'll pretend these are in Amazon.
 
-Let's connect up those servers to the switch. And while we're at it, add "db" and "www" pools. And why not? Put rack01 into dc01 and switch01 into rack01.
-    
-    arsimto ln --assets=dc01,rack01
-    arsimto ln --assets=rack01,switch01
-    arsimto ln --assets=www,server01
-    arsimto ln --assets=db,server02,server03
+    for i in {01..20} ; do arsimto ln --assets=SF,server-$i.sf ; done
+    for i in {01..20} ; do arsimto ln --assets=OR,server-$i.or ; done
+    arsimto ln --assets=AWS,OR
+    arsimto ln --assets=AWS,SF
 
-Use "arsimto ls" to see what pools you have.
+Now let's see how things look:
 
     arsimto ls Pools/
-    db
-    dc01
-      rack01
-        switch01
+    AWS
+      OR
+      SF
+    memcached
+    mysql
     www
 
-This shows us the hierarchy of dc01 --> rack01 --> switch01, because when you "connect" a pool to another, they automatically create a hierarchy like this. Note that some objects, like rack01, might be both an asset and a pool. Other things, like "databases" would be only a logical pool.
+Remember, the level of indent indicates a relationship, not nesting. OR and SF are just pools:
 
-Let's start in on some reporting. We need a list of all *database* servers with their *IP addresses* and how much *RAM* they have available on them.
+    arsimto ls Pools/OR
+    server-01.or
+    server-02.or
+    server-03.or
+    ...[snip]...
+    server-20.or
 
-    arsimto report  --data=ip,ram  Pools/db
-    server02	192.168.1.102	16GB
-    server03	192.168.1.103	16GB
+Now we can do a little reporting:
 
-Now all the *WWW* servers with their *IP addresses* and *NIC* capacity. Note the order of arguments is unimportant after the initial command-mode argument.
-    
-    arsimto report Pools/www --data=ip,nic
-    server01	192.168.1.101	10Gb
+    arsimto report Pools/memcached/ --data=ip,disk,cpus
+    server-11.or	54.0.0.11	8gB	4
+    server-11.sf	54.0.1.11	8gB	4
+    ...[snip]...
+    server-20.or	54.0.0.20	8gB	4
+    server-20.sf	54.0.1.20	8gB	4
 
-That concludes the examples/tutorial section.
+Now let's move some servers around to complicate things, like real life:
+
+    arsimto mv Pools/memcached/server-1[4-6]* Pools/www/
+    arsimto mv Pools/www/server-0[6-7]* Pools/mysql/
+
+Now what do things look like?
+
+    arsimto report Pools/www --data=ip,disk,ram,network | fgrep .or
+    server-08.or	54.0.0.08	1tB	8GB	10gb
+    server-09.or	54.0.0.09	1tB	8GB	10gb
+    server-10.or	54.0.0.10	1tB	8GB	10gb
+    server-14.or	54.0.0.14	8gB	32GB	40gb
+    server-15.or	54.0.0.15	8gB	32GB	40gb
+    server-16.or	54.0.0.16	8gB	32GB	40gb
+
+This is where an inventory management system starts to help matters. We've added chaos into our system, and this helps us keep track of the chaos. Our WWW pool is heterogenous, so we might weight the servers differently, or start doubling up processes.
 
 Technical Notes
 ===============

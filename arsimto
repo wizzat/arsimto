@@ -218,19 +218,19 @@ sub rmAssets {
 
 # move an asset from one pool to another
 sub mvAssets {
-	my $assetToMove = shift(@extraArgs);
-	my $destPool = shift(@extraArgs);
-
-	# these are symlinks we're moving around, if there's a trailing slash,
-	# then GNU mv will hate on us
-	$assetToMove =~ s/\/$//g;
+	my $numMvArgs = scalar @extraArgs;
+	my $destPool = $extraArgs[$numMvArgs - 1];
 	$destPool =~ s/\/$//g;
 
-	unless (-d $assetToMove && -d $destPool) {
-		print STDERR " E You must specify an assetToMove and destPool that exist! I got $assetToMove and $destPool\n";
-		exit 255;
-	} else {
-		system ("mv $assetToMove $destPool");
+	foreach my $assetToMove (@extraArgs) {
+		# these are symlinks we're moving around, if there's a trailing slash,
+		# then GNU mv will hate on us
+		$assetToMove =~ s/\/$//g;
+
+		if (-d $assetToMove && -d $destPool && $assetToMove ne $destPool) {
+			print STDERR "$assetToMove --> $destPool\n";
+			system ("mv $assetToMove $destPool");
+		}
 	}
 }
 
