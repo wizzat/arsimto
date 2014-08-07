@@ -59,12 +59,12 @@ First, we will create several assets and connect some servers to a switch:
     
 See how things look so far with an "arsimto list" command:
 
-    arsimto list Pools/switch01/
+    arsimto ls Pools/switch01/
     server01
     server02
     server03
 
-Try also "arsimto list Assets" - this will list every asset you have.
+Try also "arsimto ls Assets" - this will list every asset you have.
 
 Let's connect up those servers to the switch. And while we're at it, add "db" and "www" pools. And why not? Put rack01 into dc01 and switch01 into rack01.
     
@@ -73,7 +73,7 @@ Let's connect up those servers to the switch. And while we're at it, add "db" an
     arsimto ln --assets=www,server01
     arsimto ln --assets=db,server02,server03
 
-Use "arsimto list" to see what pools you have.
+Use "arsimto ls" to see what pools you have.
 
     arsimto ls Pools/
     db
@@ -84,13 +84,13 @@ Use "arsimto list" to see what pools you have.
 
 This shows us the hierarchy of dc01 --> rack01 --> switch01, because when you "connect" a pool to another, they automatically create a hierarchy like this. Note that some objects, like rack01, might be both an asset and a pool. Other things, like "databases" would be only a logical pool.
 
-Let's start in on some reporting. We need a list of all database servers with their IP addresses and how much RAM they have available on them.
+Let's start in on some reporting. We need a list of all *database* servers with their *IP addresses* and how much *RAM* they have available on them.
 
     arsimto report  --data=ip,ram  Pools/db
     server02	192.168.1.102	16GB
     server03	192.168.1.103	16GB
 
-Now we want to know about all the WWW servers with their IP addresses and NIC capacity.
+Now all the *WWW* servers with their *IP addresses* and *NIC* capacity. Note the order of arguments is unimportant after the initial command-mode argument.
     
     arsimto report Pools/www --data=ip,nic
     server01	192.168.1.101	10Gb
@@ -107,4 +107,11 @@ You can do a lot of exploration outside the tool. Everything is stored as direct
 The Unix filesystem is a tree structure. I am implementing an acyclic graph structure on top of the Unix filesystem by storing Pool names in a directory with symlinks to other Pools and Assets. If you create cycles in the graph (say dc01 :: switch01 :: dc01) then arsimto will be unhappy, and so will you be. If you think you have a case for a cycle in the graph, let's discuss it.
 
 The Unix filesystem has a very well-understood API. Because I'm not storing data in the files, only file names, the API to traverse the data outside of arsimto is "ls", "mv", "find", "rm", and "ln." You will find you don't need "cat" or "grep" commands since the data is stored only in filename metadata.
+
+FAQs
+====
+
+ * Q: Backups? A: Try tar -zcvPf backup.tgz /path/to/arsimto/AssetsPoolsDir.
+ * Q: Many simultaneous users? A: Try putting AssetsPoolsDir into git. This might also be considered your "backup."
+ * Q: Oh noes I deleted half my infrastructure! A: Did you do backups or keep everything in git? Try that.
 
