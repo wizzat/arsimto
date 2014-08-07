@@ -299,8 +299,9 @@ sub listAssets {
 
 				foreach my $oneAsset (@assetList) {
 					if (defined $reportHash->{$oneAsset}) {
-						if ($verbose) { print STDERR "   - setting $currPool --> $oneAsset parent/child\n"; }
-						$reportHash->{$oneAsset}->{'parent'} = $currPool;
+						if ($verbose) { print STDERR "   - Setting $currPool --> $oneAsset link\n"; }
+						## uncomment this to use indentation - not recommended
+						#$reportHash->{$oneAsset}->{'parent'} = $currPool;
 						$reportHash->{$currPool}->{'children'} .= "$oneAsset,";
 					}
 				}
@@ -328,10 +329,13 @@ sub outputHashTree {
 
 	foreach my $parentKey (sort keys %{$hashToTraverse}) {
 		if ($hashToTraverse->{$parentKey}->{'parent'} eq $rootLevel) {
-			print "$leadSpaces$parentKey\n";
+			print "$leadSpaces$parentKey";
 			if (defined $hashToTraverse->{$parentKey}->{'children'}) {
+				$hashToTraverse->{$parentKey}->{'children'} =~ s/,$//;
+				print " --> " . $hashToTraverse->{$parentKey}->{'children'};
 				outputHashTree ($hashToTraverse, $parentKey, $indent);
 			}
+			print "\n";
 		}
 	}
 }

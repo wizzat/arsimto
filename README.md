@@ -28,29 +28,57 @@ The solution:
 
 The Unix file system, with its directory structure and symlinking should have
 the power to express the solution to this problem. A simple wrapper script that
-adds assets and does "find" commands should suffice to express the solution to
+adds assets and does various commands should suffice to express the solution to
 the problem.
+
+So far, the list of Unix commands I've needed to achieve the goal:
+
+ * find
+ * ls
+ * mv
+ * ln
+ * rm
 
 Assets
 ======
 
-There is a directory Assets/ that contains one directory per asset. Inside the
-[asset]/ directory are files named "[variable]:[value]" for example
-"mac:32:a2:f3:c7:26:6a:20:f9:dd:a5:4e" or "ip:192.168.1.5".
+There is a directory Assets/ that contains one directory per asset. Inside are
+files named "[variable]:[value]" for example:
+
+ * mac:32:a2:f3:c7:26:6a:20:f9:dd:a5:4e
+ * ip:192.168.1.5
+ * ram:32GB
+ * cpus:8
+
+As you can see, values can have colons. The variable name cannot. Everything up
+to the first colon is the variable name (which you can report on). Try not to
+be creative with these. Don't use shell metacharacters, like any sort of
+punctuation.
 
 Pools
 =====
 
 There is a directory Pools/ that contains one directory per logical grouping.
-Inside the <pool>/ directory are symlinks to each Assets/[asset]/ that belong
-to that pool. It is possible for a pool to link to another pool (that is, to be
-a grouping of pools).
+Inside are symlinks to each Assets/[asset]/ that belong to that pool. It is
+possible for a pool to link to another pool (that is, to be a grouping of
+pools).
 
 Note that the pools aren't contained within each other. They're merely linked.
 The pool namespace is flat. When you do "arsimto ls Pools" the tool attempts to
-show you the linking relationships using indentation, which is traditionally
-used to show nesting. This can be confusing. If a better UI for indicating
-links is discovered, it will be implemented.
+show you the linking relationships using ASCII art. Here's an example:
+
+    arsimto ls Pools/
+	AWS --> OR,SF
+	OR
+	Rackspace --> OR
+	SF
+	memcached
+	mysql
+	www
+
+Note that AWS points to the OR pool, but so does Rackspace. This doesn't mean
+there are distinct AWS/OR and Rackspace/OR pools. It means they both point to
+the same thing.
 
 Because links are implemented as symlinks within a directory, you can fool
 yourself by doing "arsimto ls Pools/GroupingPool/GroupedPool" and it will work.
