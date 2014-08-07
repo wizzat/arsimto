@@ -59,44 +59,24 @@ Pools
 =====
 
 There is a directory Pools/ that contains one directory per logical grouping.
-Inside are symlinks to each Assets/[asset]/ that belong to that pool. It is
-possible for a pool to link to another pool (that is, to be a grouping of
-pools).
+Inside are symlinks to each object that belongs to that Pool. Typically that
+object is an Asset. However, you can also aggregate several Pools underneath
+another like this:
 
-Note that the pools aren't contained within each other. They're merely linked.
-The pool namespace is flat. When you do "arsimto ls Pools" the tool attempts to
-show you the linking relationships using ASCII art. Here's an example:
-
+    arsimto ln mainapp memcached mysql www
     arsimto ls Pools/
-	AWS --> OR,SF
-	OR
-	Rackspace --> OR
-	SF
-	memcached
-	mysql
-	www
+    mainapp --> memcached,mysql,www
+    memcached
+    mysql
+    www
 
-Note that AWS points to the OR pool, but so does Rackspace. This doesn't mean
-there are distinct AWS/OR and Rackspace/OR pools. It means they both point to
-the same thing.
+The Pool namespace is flat. The Pools aren't contained within each other.
+They're merely aggregated by the linking Pool. In precisely the same way an
+Asset can appear in two Pools (Production and Databases and Oregon, for
+example), a Pool can appear in two other Pools.
 
-Because links are implemented as symlinks within a directory, you can fool
-yourself by doing "arsimto ls Pools/GroupingPool/GroupedPool" and it will work.
-This helps reinforce the incorrect perception that there is nesting (aka
-Parent/Child) but such nesting does not exist. I apologize for this
-confusing aspect now.
-
-Relationships
-=============
-
-A given pool can link to another pool. For example, a data center is a pool. A
-rack is a pool linked from the data center. Some pools are purely logical, such
-as "Databases" or "WWW". Others are physical, such as "Rack" or "Switch".
-
-Pools can link to physical assets. For example, the "Databases" pool containing
-"db01". Pools can also link to other pools. For example, the "AWS" pool
-containing "OR" and "VA" (US-West and US-East names if you prefer the Amazon
-naming).
+The purpose of Pools is to avoid having to type all the names of every Asset or
+Pool that are logically grouped every time. 
 
 Examples / Tutorial
 ===================
@@ -107,8 +87,8 @@ will do a slightly more-complex real-world setup with more assets. All the
 following happens in a Linux BASH shell. Let's begin by creating a number of
 assets:
 
-    for i in {01..20} ; do arsimto add --assets=server-$i.or --data=ip:54.0.0.$i ; done
-    for i in {01..20} ; do arsimto add --assets=server-$i.sf --data=ip:54.0.1.$i ; done
+    for i in {01..20} ; do arsimto add server-$i.or --data=ip:10.2.0.$i ; done
+    for i in {01..20} ; do arsimto add server-$i.sf --data=ip:10.2.1.$i ; done
 
 Now we'll segregate them according to their purpose. We'll have some MySQLs,
 some WWWs, and some memcacheds. We'll add machine-specific data and put
@@ -116,16 +96,16 @@ them into pools:
 
     for dc in or sf ; do
 	    for i in {01..05} ; do
-		    arsimto add --assets=server-$i.$dc --data=disk:8tB,network:20gb,ram:64GB,cpus:24 ;
-			arsimto ln --assets=mysql,server-$i.$dc ;
+		    arsimto add server-$i.$dc --data=disk:8tB,network:20gb,ram:64GB,cpus:24 ;
+			arsimto ln mysql server-$i.$dc ;
 		done ;
 	    for i in {06..10} ; do
-		    arsimto add --assets=server-$i.$dc --data=disk:1tB,network:10gb,ram:8GB,cpus:8 ;
-			arsimto ln --assets=www,server-$i.$dc ;
+		    arsimto add server-$i.$dc --data=disk:1tB,network:10gb,ram:8GB,cpus:8 ;
+			arsimto ln www server-$i.$dc ;
 		done ;
         for i in {11..20} ; do
-		    arsimto add --assets=server-$i.$dc --data=disk:8gB,network:40gb,ram:32GB,cpus:4 ;
-			arsimto ln --assets=memcached,server-$i.$dc ;
+		    arsimto add server-$i.$dc --data=disk:8gB,network:40gb,ram:32GB,cpus:4 ;
+			arsimto ln memcached server-$i.$dc ;
 		done ;
 	done
 
@@ -137,30 +117,20 @@ in the future.
 Now we have two datacenters, we should reflect that. We'll pretend these are in
 Amazon.
 
-    for i in {01..20} ; do arsimto ln --assets=SF,server-$i.sf ; done
-    for i in {01..20} ; do arsimto ln --assets=OR,server-$i.or ; done
-    arsimto ln --assets=AWS,OR
-    arsimto ln --assets=AWS,SF
+    for i in {01..20} ; do arsimto ln SF server-$i.sf ; done
+    for i in {01..20} ; do arsimto ln OR server-$i.or ; done
+    arsimto ln AWS OR
+    arsimto ln AWS SF
 
 Now let's see how things look:
 
     arsimto ls Pools/
-    AWS
-      OR
-      SF
+    AWS --> OR,SF
+    OR
+    SF
     memcached
     mysql
     www
-
-Remember, the level of indent indicates a relationship, not nesting. OR and SF
-are just top-level pools like anything else:
-
-    arsimto ls Pools/OR
-    server-01.or
-    server-02.or
-    server-03.or
-    ...[snip]...
-    server-20.or
 
 Now let's move some servers around to complicate things, like real life:
 
@@ -170,12 +140,12 @@ Now let's move some servers around to complicate things, like real life:
 Now what do things look like?
 
     arsimto report Pools/www --data=ip,disk,ram,network | fgrep .or
-    server-08.or	54.0.0.08	1tB	8GB	10gb
-    server-09.or	54.0.0.09	1tB	8GB	10gb
-    server-10.or	54.0.0.10	1tB	8GB	10gb
-    server-14.or	54.0.0.14	8gB	32GB	40gb
-    server-15.or	54.0.0.15	8gB	32GB	40gb
-    server-16.or	54.0.0.16	8gB	32GB	40gb
+    server-08.or	10.2.0.08	1tB	8GB	10gb
+    server-09.or	10.2.0.09	1tB	8GB	10gb
+    server-10.or	10.2.0.10	1tB	8GB	10gb
+    server-14.or	10.2.0.14	8gB	32GB	40gb
+    server-15.or	10.2.0.15	8gB	32GB	40gb
+    server-16.or	10.2.0.16	8gB	32GB	40gb
 
 This is where an inventory management system starts to help matters. We've
 added chaos into our system, and this helps us keep track of the chaos. Our WWW
@@ -210,7 +180,34 @@ and "grep" commands on the output reports occasionally.
 FAQs
 ====
 
- * Q: Backups? A: Try tar -zcvPf backup.tgz /path/to/arsimto/AssetsPoolsDir.
- * Q: Many simultaneous users? A: Try putting AssetsPoolsDir into git. This might also be considered your "backup."
- * Q: Oh noes I deleted half my infrastructure! A: Did you do backups or keep everything in git? Try that.
+Q: Backups?
+A: Try tar -zcvPf backup.tgz /path/to/arsimto/AssetsPoolsDir.
+
+Q: Many simultaneous users?
+A: Try putting AssetsPoolsDir into git. This might also be considered your "backup."
+
+Q: Oh noes I deleted half my infrastructure!
+A: Did you do backups or keep everything in git? Try that.
+
+Q: Pool nesting hierarchies?
+A: No. Pool namespace is flat. See this example:
+
+    arsimto ls Pools/
+	AWS --> OR,SF
+	OR
+	Rackspace --> OR
+	SF
+	memcached
+	mysql
+	www
+
+AWS points to the OR (and SF) pool, but so does Rackspace. This doesn't mean
+there are distinct AWS/OR and Rackspace/OR pools. It means they both point to
+the same thing. This is almost certainly an error.
+
+Because links are implemented as symlinks within a directory, you can fool
+yourself by doing "arsimto ls Pools/GroupingPool/GroupedPool" and it will work.
+This helps reinforce the incorrect perception that there is nesting (aka
+Parent/Child) but such nesting does not exist. I apologize for this
+confusing aspect now.
 
