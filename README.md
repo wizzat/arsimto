@@ -4,15 +4,20 @@ arsimto: A Radically-Simple Inventory Management Tool
 Impetus:
 ========
 
-I looked at Cobbler. I looked at Clusto. Every tool seemed overkill for the problem I'm solving.
+I looked at Cobbler. I looked at Clusto. I looked at Helix. Every tool seemed overkill for the problem I'm solving.
 
 The problem:
 ============
 
 1. I have thousands of assets.
-2. The assets are related in multiple ways.
-3. What are all the assets related to each other?
-4. What is some data about the asset?
+2. The assets are grouped in multiple ways.
+
+I want to ask:
+
+1. What are all the assets related to each other?
+2. What is some data about the asset?
+
+I want to tie the tool into other tools like Nagios, Ansible, and various dashboards I'm creating (for Grafana, for example). Therefore the tool needs an extremely simple and obvious API that's immediately understood by competent technical professionals.
 
 The solution:
 =============
@@ -97,5 +102,9 @@ Technical Notes
 
 Pools, although they can be nested, must still be globally unique names! Therefore, if the "Oregon" pool is inside the "AWS" pool, that disallows you from creating an "Oregon" pool inside the "Rackspace" pool. You may choose to put implied hierarchies into your pool names such as "AWS-Oregon" and "Rackspace-Oregon" for example.
 
-You can do a lot of exploration outside the tool. Everything is stored as directories and files in the CWD from where you run the tool. Also note this means two different users may not see the same view of things. You can edit the source code of arsimto to make the Pools/ and Assets/ directories be somewhere else (like /opt/arsimto/Pools/ and /opt/arsimto/Assets/ for example).
+You can do a lot of exploration outside the tool. Everything is stored as directories and files in the CWD from where you run the tool. Also note this means two different users will not see the same things if they are in different directories. You can edit the source code of arsimto to make the Pools/ and Assets/ directories be somewhere constant like /opt/arsimto/Pools/ and /opt/arsimto/Assets/, for example.
+
+The Unix filesystem is a tree structure. I am implementing an acyclic graph structure on top of the Unix filesystem by storing Pool names in a directory with symlinks to other Pools and Assets. If you create cycles in the graph (say dc01 :: switch01 :: dc01) then arsimto will be unhappy, and so will you be. If you think you have a case for a cycle in the graph, let's discuss it.
+
+The Unix filesystem has a very well-understood API. Because I'm not storing data in the files, only file names, the API to traverse the data outside of arsimto is "ls", "mv", "find", "rm", and "ln." You will find you don't need "cat" or "grep" commands since the data is stored only in filename metadata.
 
