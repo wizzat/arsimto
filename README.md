@@ -218,11 +218,15 @@ I decided to build a "big" inventory and do some timings. Here is the setup:
 
     arsimto add dc01   --data=capacity:5000
     arsimto add rack01   --data=U:48
-    arsimto add switch01 --data=ports:48
+    # shedload of servers
     arsimto add server{1000..9000} --data=ram:16GB,disk:2048GB,nic:10Gb
+    # put servers in racks
     for i in {10..89} ; do for j in `seq -w 0 99` ; do arsimto ln rack$i server$i$j ; done ; done
+    # put racks in cages
     for i in `seq -w 1 8` ; do for j in `seq -w 1 9` ; do arsimto ln cage$i rack$i$j ; done ; done
-    arsimto ln dc01 cage{1..8} 
+    # put cages in DC
+    arsimto ln dc01 cage{1..8}
+    # create some pools
     for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln www server${i}0${j} ; done ; done
     for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln www server${i}1${j} ; done ; done
     for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln app server${i}2${j} ; done ; done
@@ -233,6 +237,8 @@ I decided to build a "big" inventory and do some timings. Here is the setup:
     for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln memcached server${i}7${j} ; done ; done
     for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln memcached server${i}8${j} ; done ; done
     for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln varnish server${i}9${j} ; done ; done
+    # add joke MAC for some servers
+    for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto add server${i}5${j} --data=mac:aa:bb:$i:cc:f$j:dd:e0:f1 ; done ; done
 
 This initial setup takes several minutes on a 2011 Macbook Pro with SSD-based
 storage. I did not do precise timings, but it felt like about 5 minutes. Now
@@ -258,6 +264,10 @@ let's do some timings!
     real    0m0.200s
     user    0m0.057s
     sys     0m0.135s
+    time arsimto ls mysql --data=ram,disk,mac
+    real    0m7.046s
+    user    0m4.320s
+    sys     0m2.857s
 
 Note that doing `arsimto ls memcached --data=ram,disk` wasn't appreciably
 different in speed as doing it without the `--data=` flag (it was, in fact,
