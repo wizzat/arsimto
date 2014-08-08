@@ -99,12 +99,8 @@ sub doArgs {
 		print "  $0 add dc01   --data=capacity:5000\n";
 		print "  $0 add rack01   --data=U:48\n";
 		print "  $0 add switch01 --data=ports:48\n";
-		print "  $0 add server{01..05} --data=ram:16GB,disk:2048GB,nic:10Gb\n";
-		print "  $0 add server01 --data=ip:192.168.1.101\n";
-		print "  $0 add server02 --data=ip:192.168.1.102\n";
-		print "  $0 add server03 --data=ip:192.168.1.103\n";
-		print "  $0 add server04 --data=ip:192.168.3.201\n";
-		print "  $0 add server05 --data=ip:192.168.3.202\n";
+		print "  $0 add server{10..25} --data=ram:16GB,disk:2048GB,nic:10Gb\n";
+		print "  for i in {10..25} ; do $0 add server\$i --data=ip:192.168.1.1\$i ; done\n";
 	}
 	print "\n";
 	print "ln :: \n";
@@ -114,10 +110,11 @@ sub doArgs {
 	if ($helpLength eq 'long') {
 		print "Examples:\n";
 		print "  $0 ln dc01 rack01\n";
-		print "  $0 ln rack01 switch01 server{01..05}\n";
-		print "  $0 ln switch01 server{01..05}\n";
-		print "  $0 ln www server{01..03}\n";
-		print "  $0 ln db server{04..05}\n";
+		print "  $0 ln rack01 switch01 server{10..25}\n";
+		print "  $0 ln switch01 server{10..25}\n";
+		print "  $0 ln www server{10..20}\n";
+		print "  $0 ln db server{21..25}\n";
+		print "  $0 ln production server{18..23}\n";
 	}
 	print "\n";
 	print "ls :: \n";
@@ -132,7 +129,7 @@ sub doArgs {
 		print "  $0 ls Pools/db\n";
 		print "  $0 ls Pools/db/server02\n";
 		print "  $0 ls Pools/db  Pools/www  Pools/dc01\n";
-		print "  $0 ls Pools/db  Pools/www  Pools/dc01 --intersection\n";
+		print "  $0 ls production db --intersection\n";
 		print "  $0 ls --data=ram,ip Pools/db\n";
 		print "  $0 ls --data=ip,nic Pools/www\n";
 	}
@@ -151,7 +148,7 @@ sub doArgs {
 	print "  Remove an asset from the system and all pools it's in.\n";
 	if ($helpLength eq 'long') {
 		print "Examples:\n";
-		print "  $0 rm --assets=server03\n";
+		print "  $0 rm --assets=server13\n";
 	}
 }
 
