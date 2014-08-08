@@ -1,14 +1,14 @@
 arsimto: A Radically-Simple Inventory Management Tool
 =====================================================
 
-Impetus:
-========
+Impetus
+=======
 
 I looked at OpenDCIM, Cobbler, Clusto, Helix. Every tool seemed difficult or
 overkill for the problem I'm solving.
 
-The problem:
-============
+The Problem
+===========
 
 1. I have thousands of assets.
 2. The assets are grouped in multiple ways.
@@ -23,8 +23,8 @@ dashboards I'm creating (for Grafana, for example). Therefore the tool needs an
 extremely simple and obvious API that's immediately understood by competent
 technical professionals.
 
-The solution:
-=============
+The Solution
+============
 
 The Unix file system, with its directory structure and symlinking should have
 the power to express the solution to this problem. A simple wrapper script that
