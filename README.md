@@ -4,7 +4,7 @@ arsimto: A Radically-Simple Inventory Management Tool
 Impetus:
 ========
 
-I looked at Cobbler. I looked at Clusto. I looked at Helix. Every tool seemed
+I looked at OpenDCIM, Cobbler, Clusto, Helix. Every tool seemed difficult or
 overkill for the problem I'm solving.
 
 The problem:
@@ -43,7 +43,7 @@ Assets
 ======
 
 There is a directory Assets/ that contains one directory per asset. Inside are
-files named "[variable]:[value]" for example:
+files named `[variable]:[value]` for example:
 
  * mac:32:a2:f3:c7:26:6a:20:f9:dd:a5:4e
  * ip:192.168.1.5
@@ -81,7 +81,7 @@ Pool that are logically grouped every time.
 Examples / Tutorial
 ===================
 
-If you run "arsimto -h" you will get a verbose help output including "Examples"
+If you run `arsimto -h` you will get a verbose help output including "Examples"
 commands that, when run in order, will create a very simple datacenter. Here we
 will do a slightly more-complex real-world setup with more assets. All the
 following happens in a Linux BASH shell. Let's begin by creating a number of
@@ -95,7 +95,7 @@ some WWWs, and some memcacheds. We'll add machine-specific data and put
 them into pools:
 
     for dc in or sf ; do
-	    for i in {01..05} ; do
+        for i in {01..05} ; do
 		    arsimto add server-$i.$dc --data=disk:8tB,network:20gb,ram:64GB,cpus:24 ;
 			arsimto ln mysql server-$i.$dc ;
 		done ;
@@ -109,9 +109,9 @@ them into pools:
 		done ;
 	done
 
-Note that if this is real life, you might choose not to do the --data= option
-for your add, but rather --collect which will SSH to the server and collect
-some data from it. Tying the "add" portion into Facter might be a nice addition
+Note that if this is real life, you might choose not to do the `--data=` option
+for your add, but rather `--collect` which will SSH to the server and collect
+some data from it. Tying the `add` command into Facter might be a nice addition
 in the future.
 
 Now we have two datacenters, we should reflect that. We'll pretend these are in
@@ -180,16 +180,16 @@ and "grep" commands on the output reports occasionally.
 FAQs
 ====
 
-Q: Backups?
+### Q: Backups?
 A: Try tar -zcvPf backup.tgz /path/to/arsimto/AssetsPoolsDir.
 
-Q: Many simultaneous users?
+### Q: Many simultaneous users?
 A: Try putting AssetsPoolsDir into git. This might also be considered your "backup."
 
-Q: Oh noes I deleted half my infrastructure!
+### Q: Oh noes I deleted half my infrastructure!
 A: Did you do backups or keep everything in git? Try that.
 
-Q: Pool nesting hierarchies?
+### Q: Pool nesting hierarchies?
 A: No. Pool namespace is flat. See this example:
 
     arsimto ls Pools/
@@ -211,3 +211,54 @@ This helps reinforce the incorrect perception that there is nesting (aka
 Parent/Child) but such nesting does not exist. I apologize for this
 confusing aspect now.
 
+Performance
+===========
+
+I decided to build a "big" inventory and do some timings. Here is the setup:
+
+    arsimto add dc01   --data=capacity:5000
+    arsimto add rack01   --data=U:48
+    arsimto add switch01 --data=ports:48
+    arsimto add server{1000..9000} --data=ram:16GB,disk:2048GB,nic:10Gb
+    for i in {10..89} ; do for j in `seq -w 0 99` ; do arsimto ln rack$i server$i$j ; done ; done
+    for i in `seq -w 1 8` ; do for j in `seq -w 1 9` ; do arsimto ln cage$i rack$i$j ; done ; done
+    arsimto ln dc01 cage{1..8} 
+    for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln www server${i}0${j} ; done ; done
+    for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln www server${i}1${j} ; done ; done
+    for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln app server${i}2${j} ; done ; done
+    for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln app server${i}3${j} ; done ; done
+    for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln mysql server${i}4${j} ; done ; done
+    for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln mysql server${i}5${j} ; done ; done
+    for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln memcached server${i}6${j} ; done ; done
+    for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln memcached server${i}7${j} ; done ; done
+    for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln memcached server${i}8${j} ; done ; done
+    for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto ln varnish server${i}9${j} ; done ; done
+
+This initial setup takes several minutes on a 2011 Macbook Pro with SSD-based
+storage. I did not do precise timings, but it felt like about 5 minutes. Now
+let's do some timings!
+
+    time arsimto ls app
+    real    0m6.926s
+    user    0m4.156s
+    sys     0m2.903s
+    time arsimto ls varnish
+    real    0m2.992s
+    user    0m1.661s
+    sys     0m1.386s
+    time arsimto ls memcached
+    real    0m11.634s
+    user    0m7.338s
+    sys     0m4.528s
+    time arsimto rename server8696 varnish8696
+    real    0m1.674s
+    user    0m0.167s
+    sys     0m1.145s
+    time arsimto rm server7171
+    real    0m0.200s
+    user    0m0.057s
+    sys     0m0.135s
+
+Note that doing `arsimto ls memcached --data=ram,disk` wasn't appreciably
+different in speed as doing it without the `--data=` flag (it was, in fact,
+slightly faster due to caching).
