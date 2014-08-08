@@ -124,13 +124,13 @@ Amazon.
 
 Now let's see how things look:
 
-    arsimto ls Pools/
-    AWS --> OR,SF
-    OR
-    SF
-    memcached
-    mysql
-    www
+    arsimto ls Pools
+     () AWS --> OR,SF
+     () OR
+     () SF
+     () memcached
+     () mysql
+     () www
 
 Now let's move some servers around to complicate things, like real life:
 
@@ -139,7 +139,7 @@ Now let's move some servers around to complicate things, like real life:
 
 Now what do things look like?
 
-    arsimto report Pools/www --data=ip,disk,ram,network | fgrep .or
+    arsimto ls --intersect Pools/www Pools/OR --data=ip,disk,ram,network
     server-08.or	10.2.0.08	1tB	8GB	10gb
     server-09.or	10.2.0.09	1tB	8GB	10gb
     server-10.or	10.2.0.10	1tB	8GB	10gb

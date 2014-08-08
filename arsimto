@@ -26,7 +26,7 @@ my $poolDir = "Pools";
 my $assetDir = "Assets";
 
 # list of posible command sections
-my $cmdList = "add, ln, ls, mv, rename, report, rm, help";
+my $cmdList = "add, ln, ls, mv, rename, rm, help";
 
 # a constant meaning an entry is at the top of a tree
 my $topLevel = '__TOP_LEVEL_NO_PARENT';
@@ -44,7 +44,7 @@ foreach my $arg (@ARGV) {
 	elsif ($arg =~ /^-+a(ssets)*=(.+)$/)        { $assetList = $2; }
 	elsif ($arg =~ /^-+c(ollect)$/)             { $collectMode = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
-	elsif ($arg =~ /^-+i(ntersection)$/)        { $vennMode = 'intersection'; }
+	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; }
 	elsif ($arg =~ /^-+v(erbose)*$/)            { $verbose = 1; }
 	elsif ($cmdList =~ /\b$arg\b/)              { $mode = $arg; }
 	else { push (@extraArgs, $arg); }
@@ -69,8 +69,6 @@ if ($mode eq 'add') {
 	rmAssets();
 } elsif ($mode eq 'rename') {
 	renameAssets();
-} elsif ($mode eq 'report') {
-	reportAssets();
 } elsif ($mode eq 'help') {
 	doArgs ('short');
 }
@@ -123,26 +121,20 @@ sub doArgs {
 	}
 	print "\n";
 	print "ls :: \n";
-	print "  $0 ls <object>\n";
-	print "  List all Pools in tree view or, if pool is given, the assets in it.\n";
-	print "  There is no recursive list of all pools and assets in them since\n";
-	print "  the pool 'hierarchy' isn't a true hierarchy.\n";
+	print "  $0 ls <object> --data=n1[,n2...] [--intersection|-i]\n";
+	print "  If you pass in the $poolDir/ then you get a view of all Pools. If you pass in the\n";
+	print "  name(s) of Pool, you get all objects in that Pool or group of Pools. If you further\n";
+	print "  pass --intersection (or -i) then you get only objects that are in all the Pools.\n";
+	print "  If you pass --data=... then you get all data about each object returned.\n";
 	if ($helpLength eq 'long') {
 		print "Examples:\n";
 		print "  $0 ls Assets\n";
 		print "  $0 ls Pools/db\n";
 		print "  $0 ls Pools/db/server02\n";
 		print "  $0 ls Pools/db  Pools/www  Pools/dc01\n";
-	}
-	print "\n";
-	print "report :: \n";
-	print "  $0 report <object> --data=n1[,n2...]\n";
-	print "  Generates a list of assets and their data. This is how tools should call\n";
-	print "  arsimto to gather information about the inventory.\n";
-	if ($helpLength eq 'long') {
-		print "Examples:\n";
-		print "  $0 report --data=ram,ip Pools/db\n";
-		print "  $0 report --data=ip,nic Pools/www\n";
+		print "  $0 ls Pools/db  Pools/www  Pools/dc01 --intersection\n";
+		print "  $0 ls --data=ram,ip Pools/db\n";
+		print "  $0 ls --data=ip,nic Pools/www\n";
 	}
 	print "\n";
 	print "mv ::\n";
@@ -260,61 +252,106 @@ sub connectAssets {
 # then Pools/Y is a child of Pools/X
 sub listAssets {
 	my $reportHash;
-	my $poolHash;
 
-	# First, build a hash of pools:
-	#   reportHash->{datacenter01} = top
-	#   reportHash->{switch01} = top
-	#   reportHash->{db} = top
-	#
-	# Next, get assets in each:
-	#   datacenter01 children = switch01
-	#   switch01 children = server01..server03
-	#   db children = server01
-	#
-	# Next, iterate through assets of a pool. if poolHash->{pool.childN}
-	# exists, then pool.childN is a pool, thus:
-	#   reportHash->{pool}->{children} = child01
-	#   reportHash->{child01} = pool
+	# no args at all? just list pools.
+	if (!defined $extraArgs[0]) {
+		$extraArgs[0] = $poolDir;
+	}
+
+	# two major modes: first is output a view of all the pools.
+	if ($extraArgs[0] =~ /^$poolDir\/*$/) {
+		my $listDest = $extraArgs[0];
+
+		# first collect all top-level pool names, some of which might
+		# be children of others
+		my @poolList = split(/\n/, `ls -1 $listDest`);
+
+		# put the list of top-level pools into the report hash...
+		foreach my $currPool (@poolList) {
+			$reportHash->{$currPool}->{'parent'} = $topLevel;
+		}
+
+		# second collect all assets inside the top-level pool names
+		# and if they match top-level pool, create two-way link between
+		# them in the hash
+		foreach my $currPool (@poolList) {
+			my @assetList = split(/\n/, `ls -1 $listDest/$currPool`);
+
+			foreach my $oneAsset (@assetList) {
+				if (defined $reportHash->{$oneAsset}) {
+					if ($verbose) { print STDERR "   - Setting $currPool --> $oneAsset link\n"; }
+					$reportHash->{$currPool}->{'children'} .= "$oneAsset,";
+				}
+			}
+		}
+
+		# third, output the hash
+		outputHashTree ($reportHash, $topLevel, 0);
+
+		return 0;
+	}
+
+	# second major mode is outputing a list of Assets - outsource
+	# this to reportAssets()
+	reportAssets();
+}
+
+# based on the objects listed in @extraArgs, make an array of assets in the
+# pools that list represents
+sub collectAssetList {
+	my $assetList;
+	my $assetHash;
+	my $runNum = 0;
 
 	foreach my $listDest (@extraArgs) {
 		if ($verbose) { print STDERR " - Traversing $listDest\n"; }
 
-		# we're checking if they're checking top-level pools or some
-		# deeply-nested object. deeply-nested ones we won't worry about
-		# hierarchies
-		if ($listDest =~ /^$poolDir\/*$/) {
-			# first collect all top-level pool names, some of which might
-			# be children of others
-			my @poolList = split(/\n/, `ls -1 $listDest`);
+		my @assetsFound;
+		if (-e $listDest) {
+			# if they pass an actual dir that exists
+			@assetsFound = split(/\n/, `ls -1 $listDest`);
+		} elsif (-e "$poolDir/$listDest") {
+			# maybe they passed a pool name sans dir prefix?
+			@assetsFound = split(/\n/, `ls -1 $poolDir/$listDest`);
+		} elsif (-e "$assetDir/$listDest") {
+			# oh maybe they passed an asset name sans dir prefix? hope!
+			@assetsFound = split(/\n/, `ls -1 $assetDir/$listDest`);
+		}
 
-			# put the list of top-level pools into the report hash...
-			foreach my $currPool (@poolList) {
-				$reportHash->{$currPool}->{'parent'} = $topLevel;
-			}
+		# here we decide if we're doing the intersection of the various pools
+		if ($vennMode eq 'intersection') {
+			my @interSection;
 
-			# second collect all assets inside the top-level pool names
-			# and if they match top-level pool, create two-way link between
-			# them in the hash
-			foreach my $currPool (@poolList) {
-				my @assetList = split(/\n/, `ls -1 $listDest/$currPool`);
-
-				foreach my $oneAsset (@assetList) {
-					if (defined $reportHash->{$oneAsset}) {
-						if ($verbose) { print STDERR "   - Setting $currPool --> $oneAsset link\n"; }
-						## uncomment this to use indentation - not recommended
-						#$reportHash->{$oneAsset}->{'parent'} = $currPool;
-						$reportHash->{$currPool}->{'children'} .= "$oneAsset,";
+			# initial run, fill asset list, otherwise, do intersection
+			foreach my $foundAsset (@assetsFound) {
+				if ($runNum > 0) {
+					# time to do intersection!
+					if (defined $assetHash->{$foundAsset}) {
+						push (@interSection, $foundAsset);
 					}
+				} else {
+					# fill initial asset list
+					push (@interSection, $foundAsset);
 				}
 			}
 
-			# third, output the hash
-			outputHashTree ($reportHash, $topLevel, 0);
+			if ($verbose) { print STDERR " - Adding " . scalar @interSection . " items in this round.\n"; }
+			$assetHash = undef;
+			foreach my $foundAsset (@interSection) {
+				$assetHash->{$foundAsset} = 1;
+			}
 		} else {
-			system ("ls -1 $listDest");
+			# do they want all assets or just an intersection from the pools?
+			foreach my $foundAsset (@assetsFound) {
+				$assetHash->{$foundAsset} = 1;
+			}
 		}
+
+		$runNum++;
 	}
+
+	@{$assetList} = sort keys %{$assetHash};
+	return $assetList;
 }
 
 # traverse a tree struct implemented inside a hash
@@ -323,19 +360,12 @@ sub outputHashTree {
 	my $rootLevel = shift;
 	my $indent = shift;
 
-	my $leadSpaces = '';
-	for (my $i=0; $i < $indent; $i++) {
-		$leadSpaces .= "  ";
-	}
-	$indent++;
-
 	foreach my $parentKey (sort keys %{$hashToTraverse}) {
 		if ($hashToTraverse->{$parentKey}->{'parent'} eq $rootLevel) {
-			print "$leadSpaces$parentKey";
+			print " () $parentKey";
 			if (defined $hashToTraverse->{$parentKey}->{'children'}) {
 				$hashToTraverse->{$parentKey}->{'children'} =~ s/,$//;
 				print " --> " . $hashToTraverse->{$parentKey}->{'children'};
-				outputHashTree ($hashToTraverse, $parentKey, $indent);
 			}
 			print "\n";
 		}
@@ -347,41 +377,23 @@ sub reportAssets {
 	my $objectList = '';
 	my $reportHash;
 
-	# the default is to show stats about all servers in either
-	if ($vennMode eq 'union') {
-		# first collect all data of all assets in the pools specified
-		foreach my $reportDest (@extraArgs) {
-			$objectList .= `find -L $reportDest -type f -name '*:*'`;
-		}
-	} elsif ($vennMode eq 'intersection') {
-		my $numArgs = scalar @extraArgs;
-		my $assetsFound = `ls -1 @extraArgs | sort | uniq -c | sort -nr`;
+	$assetList = collectAssetList();
 
-		foreach my $oneLine (split(/\n/, $assetsFound)) {
-			if ($oneLine =~ /^\s*(\d+)\s+(.+)$/) {
-				my $countTimes = $1;
-				my $assetName = $2;
-				if ($countTimes >= $numArgs) {
-					# add all data:data from the assets found
-					#$objectList .= ...;
+	foreach my $foundAsset (@{$assetList}) {
+		$objectList .= `find -L $assetDir/$foundAsset -type f -name '*:*'`;
+
+		# next, grab out the data we want and put into a hash of assets
+		foreach my $oneLine (split(/\n/, $objectList)) {
+			if ($oneLine =~ /$foundAsset\/(.+?):(.+)$/) {
+				my $dataName = $1;
+				my $dataVal = $2;
+
+				# if this data matches the list they want, put into report
+				if ($dataList =~ /\b$dataName\b/) {
+					$reportHash->{$foundAsset}->{$dataName} = $dataVal;
+				} else {
+					$reportHash->{$foundAsset}->{$dataName} = "__O_GOD_UNFOUND__";
 				}
-			}
-		}
-		print STDERR " --intersection isn't supported yet.\n";
-	}
-
-	# next, grab out the data we want and put into a hash of assets
-	foreach my $oneLine (split(/\n/, $objectList)) {
-		if ($oneLine =~ /^.+\/(.+?)\/(.+?):(.+)$/) {
-			my $assetName = $1;
-			my $dataName = $2;
-			my $dataVal = $3;
-
-			# if this data matches the list they want, put into report
-			if ($dataList =~ /\b$dataName\b/) {
-				$reportHash->{$assetName}->{$dataName} = $dataVal;
-			} else {
-				$reportHash->{$assetName}->{$dataName} = "__O_GOD_UNFOUND__";
 			}
 		}
 	}
