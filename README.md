@@ -155,12 +155,6 @@ doubling up processes.
 Technical Notes
 ===============
 
-Pools, although they can be nested, must still be globally unique names!
-Therefore, if the "Oregon" pool is inside the "AWS" pool, that disallows you
-from creating an "Oregon" pool inside the "Rackspace" pool. You may choose to
-put implied hierarchies into your pool names such as "AWS-Oregon" and
-"Rackspace-Oregon" for example.
-
 You can do a lot of exploration outside the tool. Everything is stored as
 directories and files in the CWD from where you run the tool. It's suggested to
 keep these files in git or subversion so that users don't clobber each others'
