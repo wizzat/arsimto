@@ -148,7 +148,7 @@ sub doArgs {
 	print "  Remove an asset from the system and all pools it's in.\n";
 	if ($helpLength eq 'long') {
 		print "Examples:\n";
-		print "  $0 rm --assets=server13\n";
+		print "  $0 rm server13\n";
 	}
 }
 
@@ -203,7 +203,11 @@ sub addAssets {
 }
 
 sub rmAssets {
-	foreach my $asset (split(/,/, $assetList)) {
+	foreach my $asset (@extraArgs) {
+		# we need only the asset name, no path info
+		if ($asset =~ /\/(.+)$/) {
+			$asset = $1;
+		}
 		if ($verbose) { print STDERR " + Removing $asset from Assets $assetDir...\n"; }
 		system ("find $assetDir -name '$asset' -exec rm -rf {} \\; 2>/dev/null");
 		if ($verbose) { print STDERR " + Removing $asset from Pools $poolDir...\n"; }
