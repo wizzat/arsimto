@@ -381,21 +381,27 @@ sub reportAssets {
 	$assetList = collectAssetList();
 
 	foreach my $foundAsset (@{$assetList}) {
-		$objectList .= `find -L $assetDir/$foundAsset -type f -name '*:*'`;
+		$objectList .= `find -L $assetDir/$foundAsset -type f -name '*:*' 2>/dev/null`;
 
-		# next, grab out the data we want and put into a hash of assets
-		foreach my $oneLine (split(/\n/, $objectList)) {
-			if ($oneLine =~ /$foundAsset\/(.+?):(.+)$/) {
-				my $dataName = $1;
-				my $dataVal = $2;
+		if ($objectList) {
+			# next, grab out the data we want and put into a hash of assets
+			foreach my $oneLine (split(/\n/, $objectList)) {
+				if ($oneLine =~ /$foundAsset\/(.+?):(.+)$/) {
+					my $dataName = $1;
+					my $dataVal = $2;
 
-				# if this data matches the list they want, put into report
-				if ($dataList =~ /\b$dataName\b/) {
-					$reportHash->{$foundAsset}->{$dataName} = $dataVal;
-				} else {
-					$reportHash->{$foundAsset}->{$dataName} = "__O_GOD_UNFOUND__";
+					# if this data matches the list they want, put into report
+					if ($dataList =~ /\b$dataName\b/) {
+						$reportHash->{$foundAsset}->{$dataName} = $dataVal;
+					} else {
+						$reportHash->{$foundAsset}->{$dataName} = "__O_GOD_UNFOUND__";
+					}
 				}
 			}
+		} else {
+			# the asset was in the Pool, but had no attributes, but we still want to
+			# see the object in the list
+			$reportHash->{$foundAsset}->{nil} = 1;
 		}
 	}
 
