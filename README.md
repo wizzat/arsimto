@@ -235,8 +235,16 @@ I decided to build a "big" inventory and do some timings. Here is the setup:
     for i in `seq -w 10 89` ; do for j in `seq 1 9` ; do arsimto add server${i}5${j} --data=mac:aa:bb:$i:cc:f$j:dd:e0:f1 ; done ; done
 
 This initial setup takes several minutes on a 2011 Macbook Pro with SSD-based
-storage. I did not do precise timings, but it felt like about 5 minutes. Now
-let's do some timings!
+storage. I did not do precise timings, but it felt like about 5 minutes. When I
+re-did the creation of the above on an Ubuntu VM running on my iMac workstation
+with a hybrid SSD/disk storage system, it took about 7 minutes:
+
+    time ./buildDC.sh 
+    real    6m45.715s
+    user    0m31.298s
+    sys     0m40.267s
+
+Now let's do some timings!
 
     time arsimto ls app
     real    0m6.926s
