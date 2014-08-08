@@ -428,8 +428,10 @@ sub renameAssets {
 
 	# first rename the asset itself
 	if (-e "$assetDir/$assetNewName") {
-		print STDERR " - Cowardly refusing to overwrite/break Asset $assetDir/$assetNewName.\n";
-		return 254;
+		print STDERR " - Cowardly refusing to overwrite $assetDir/$assetNewName.\n";
+		print STDERR " - Aborting procedure! Remove Asset $assetNewName from system\n";
+		print STDERR "   before renaming something to it.\n";
+		return 251;
 	} else {
 		if ($verbose) { print STDERR " - Moving $assetDir/$assetToRename --> $assetDir/$assetNewName\n"; }
 		system ("mv $assetDir/$assetToRename $assetDir/$assetNewName");
@@ -439,9 +441,10 @@ sub renameAssets {
 	my @assetLocations = split (/\n/, $fileSystemNamesToRename);
 
 	foreach my $linkLoc (@assetLocations) {
-		if (-e "$linkLoc/$assetNewName") {
-			print STDERR " - Cowardly refusing to overwrite/break Pool link $linkLoc/$assetNewName.\n";
-		} else {
+		# because of pools-in-pools it can happen that a previous
+		# re-ln already did this. so just don't do the work twice
+		# but don't abort the procedure.
+		unless (-e "$linkLoc/$assetNewName") {
 			if ($verbose) { print STDERR " - Linking $assetDir/$assetNewName into $linkLoc and removing $assetToRename\n"; }
 			system ("cd $linkLoc && ln -s ../../$assetDir/$assetNewName ./ && rm $assetToRename");
 		}
