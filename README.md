@@ -160,11 +160,9 @@ directories and files in the CWD from where you run the tool. It's suggested to
 keep these files in git or subversion so that users don't clobber each others'
 changes, and you don't have to worry about permissions of shared directories.
 
-The Unix filesystem is a tree structure. I am implementing an acyclic graph
+The Unix filesystem is a tree structure. I am implementing a directed graph
 structure on top of the Unix filesystem by storing Pool names in a directory
-with symlinks to other Pools and Assets. If you create cycles in the graph (say
-dc01 :: switch01 :: dc01) then arsimto will be unhappy, and so will you
-be. If you think you have a case for a cycle in the graph, let's discuss it.
+with symlinks to other Pools and Assets.
 
 The Unix filesystem has a very well-understood API. Because I'm not storing
 data in the files, only file names, the API to traverse the data outside of
@@ -204,6 +202,18 @@ yourself by doing "arsimto ls Pools/GroupingPool/GroupedPool" and it will work.
 This helps reinforce the incorrect perception that there is nesting (aka
 Parent/Child) but such nesting does not exist. I apologize for this
 confusing aspect now.
+
+### Q: Cycles in the graph?
+A: Sure. This makes sense for things like circular replication rings in MySQL,
+for example. Here's what it looks like:
+
+    arsimto ln server1234 server5678
+    arsimto ln server5678 server8901
+    arsimto ln server8901 server1234
+    arsimto ls Pools/
+    () server1234 --> server5678
+    () server5678 --> server8901
+    () server8901 --> server1234
 
 Performance
 ===========

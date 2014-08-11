@@ -292,8 +292,8 @@ sub listAssets {
 		return 0;
 	}
 
-	# second major mode is outputing a list of Assets - outsource
-	# this to reportAssets()
+	# second major mode is outputing a list of Assets - outsource this to
+	# reportAssets()
 	reportAssets();
 }
 
@@ -406,6 +406,7 @@ sub reportAssets {
 	}
 
 	# output the report
+	my $reportRows = 0;
 	foreach my $assetName (sort keys %{$reportHash}) {
 		print "$assetName";
 		foreach my $dataName (split(/,/, $dataList)) {
@@ -416,7 +417,11 @@ sub reportAssets {
 			}
 		}
 		print "\n";
+		$reportRows++;
 	}
+	# if they're in a terminal, tell them how many matching assets. if they're piping
+	# then skip that. it'll just confuse things.
+	if (-t STDOUT) { print STDERR " - $reportRows matching assets.\n"; }
 }
 
 sub renameAssets {
