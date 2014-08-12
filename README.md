@@ -4,8 +4,8 @@ arsimto: A Radically-Simple Inventory Management Tool
 Impetus
 =======
 
-I looked at OpenDCIM, Cobbler, Clusto, Helix. Every tool seemed difficult or
-overkill for the problem I'm solving.
+I looked at OpenDCIM, Cobbler, Collins, Clusto, Helix. Every tool seemed
+difficult or overkill for the problem I'm solving.
 
 The Problem
 ===========
@@ -18,10 +18,15 @@ I want to ask:
 1. What are all the assets related to each other?
 2. What is some data about the asset?
 
-I want to tie the tool into other tools like Nagios, Ansible, and various
-dashboards I'm creating (for Grafana, for example). Therefore the tool needs an
-extremely simple and obvious API that's immediately understood by competent
-technical professionals.
+A concrete example, since the above might be difficult to understand: I want
+a list of all Production Database servers in Oregon along with their IP
+addresses and total RAM configured on the system.
+
+This would help me decide what further scripts should be run on that
+intersection to tie the output of the tool into other tools like Nagios,
+Ansible, and various dashboards I'm creating (for Grafana, for example).
+Therefore the tool needs an extremely simple and obvious API that's immediately
+understood by competent technical professionals.
 
 The Solution
 ============
@@ -52,8 +57,8 @@ files named `[variable]:[value]` for example:
 
 As you can see, values can have colons. The variable name cannot. Everything up
 to the first colon is the variable name (which you can report on). Try not to
-be creative with these. Don't use shell metacharacters, like any sort of
-punctuation.
+be creative with variable names. Don't use shell metacharacters, like any sort
+of punctuation.
 
 Pools
 =====

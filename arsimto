@@ -18,7 +18,7 @@ my $mode = 0;
 my $verbose = 0;
 my $assetList = '';
 my $dataList = '';
-my $collectMode = 0;
+my $collectServer = 0;
 my @extraArgs;
 
 # names of directories
@@ -42,7 +42,7 @@ unless (scalar @ARGV) {
 foreach my $arg (@ARGV) {
 	if ($arg =~ /^-+h(elp)*$/)                  { doArgs('long'); exit 0; }
 	elsif ($arg =~ /^-+a(ssets)*=(.+)$/)        { $assetList = $2; }
-	elsif ($arg =~ /^-+c(ollect)$/)             { $collectMode = 1; }
+	elsif ($arg =~ /^-+c(ollect)*=(.+)$/)       { $collectServer = $2; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
 	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; }
 	elsif ($arg =~ /^-+v(erbose)*$/)            { $verbose = 1; }
@@ -60,7 +60,7 @@ unless ($mode) {
 if ($mode eq 'add') {
 	addAssets();
 } elsif ($mode eq 'ln') {
-	connectAssets();
+	lnAssets();
 } elsif ($mode eq 'ls') {
 	listAssets();
 } elsif ($mode eq 'mv') {
@@ -91,9 +91,9 @@ sub doArgs {
 	print "\n";
 	print "add :: \n";
 	print "  $0 add <assetName> [<assetName>...]\n";
-	print "    --data=n1:v1[,n2:v2,...,nN:vN] [--collect]\n";
+	print "    --data=n1:v1[,n2:v2,...,nN:vN] [--collect=<hostName>]\n";
 	print "  Add asset into inventory. Data attributes are added to all assets listed.\n";
-	print "  --collect uses SSH to get some basic data from the host.\n";
+	print "  --collect=<hostName> SSHes to hostName to get basic data from the host.\n";
 	if ($helpLength eq 'long') {
 		print "Examples:\n";
 		print "  $0 add dc01   --data=capacity:5000\n";
@@ -167,28 +167,28 @@ sub addAssets {
 
 		# TODO: use facter or something real
 		# if they want us to collect some info automagically...
-		if ($collectMode) {
-			print " - Collecting information about $asset via SSH...\n";
+		if ($collectServer) {
+			print " - Collecting information about $asset via SSH from $collectServer...\n";
 			if ($verbose) { print STDERR "   - Collecting intIP\n"; }
 
-			my $ifConfig = `ssh $asset "ifconfig | grep addr:10"`;
+			my $ifConfig = `ssh $collectServer "ifconfig | grep addr:10"`;
 			my $intIP = "Unknown";
 			if ($ifConfig =~ /addr:(.+?)\s+/) {
 				$intIP = $1;
 			}
 
 			if ($verbose) { print STDERR "   - Collecting extIP\n"; }
-			my $extIP=`ping -c 1 $asset | grep 'bytes of data' | awk -F '(' '{print \$2}' | awk -F ')' '{print \$1}'`;
+			my $extIP=`ping -c 1 $collectServer | grep 'bytes of data' | awk -F '(' '{print \$2}' | awk -F ')' '{print \$1}'`;
 			chomp ($extIP);
 
 			if ($verbose) { print STDERR "   - Collecting CPUcount\n"; }
-			my $cpuCount = `ssh archive.or.aofk.net "cat /proc/cpuinfo | grep ^processor | wc -l"`;
+			my $cpuCount = `ssh $collectServer "cat /proc/cpuinfo | grep ^processor | wc -l"`;
 			chomp ($cpuCount);
 
 			if ($verbose) { print STDERR "   - Collecting Memory\n"; }
 			my $memory = "Unknown";
 			my $memUnits = "?";
-			my $memInfo = `ssh archive.or.aofk.net "cat /proc/meminfo | grep ^MemTotal"`;
+			my $memInfo = `ssh $collectServer "cat /proc/meminfo | grep ^MemTotal"`;
 			if ($memInfo =~ /(\d+)\s+(\w+)$/) {
 				$memory = $1;
 				$memUnits = $2;
@@ -235,12 +235,20 @@ sub mvAssets {
 }
 
 # simply connect assets to each other
-sub connectAssets {
+sub lnAssets {
 	if (scalar @extraArgs > 1) {
 		my $parentAsset = shift (@extraArgs);
 
 		foreach my $childAsset (@extraArgs) {
-			system ("mkdir -p $poolDir/$parentAsset && cd $poolDir/$parentAsset && if [ -d ../../$assetDir/$childAsset ] ; then ln -sf ../../$assetDir/$childAsset ./ ; fi ; if [ -d ../$childAsset ] ; then ln -sf ../$childAsset ./ ; fi");
+			# every pool should also be an asset so it can have data
+			system ("mkdir -p $poolDir/$parentAsset && mkdir -p $assetDir/$childAsset");
+
+			# by default the linkee is an asset...
+			system ("cd $poolDir/$parentAsset && ln -sf ../../$assetDir/$childAsset ./");
+
+			# ...if there's a Pool, make the linkee the Pool instead - Pools
+			# are essentially indexes of links
+			system ("if [ -d ../$childAsset ] ; then ln -sf ../$childAsset ./ ; fi");
 			print " - Connected $parentAsset --> $childAsset\n";
 		}
 	} else {
@@ -261,11 +269,9 @@ sub listAssets {
 
 	# two major modes: first is output a view of all the pools.
 	if ($extraArgs[0] =~ /^$poolDir\/*$/) {
-		my $listDest = $extraArgs[0];
-
 		# first collect all top-level pool names, some of which might
 		# be children of others
-		my @poolList = split(/\n/, `ls -1 $listDest`);
+		my @poolList = split(/\n/, `ls -1 $poolDir`);
 
 		# put the list of top-level pools into the report hash...
 		foreach my $currPool (@poolList) {
@@ -276,7 +282,7 @@ sub listAssets {
 		# and if they match top-level pool, create two-way link between
 		# them in the hash
 		foreach my $currPool (@poolList) {
-			my @assetList = split(/\n/, `ls -1 $listDest/$currPool`);
+			my @assetList = split(/\n/, `ls -1 $poolDir/$currPool`);
 
 			foreach my $oneAsset (@assetList) {
 				if (defined $reportHash->{$oneAsset}) {
