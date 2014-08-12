@@ -31,6 +31,7 @@ my $cmdList = "add, ln, ls, mv, rename, rm, help";
 # a constant meaning an entry is at the top of a tree
 my $topLevel = '__TOP_LEVEL_NO_PARENT';
 my $vennMode = 'union';
+my $pristineMode = 0;
 
 # no arguments passed in? short help.
 unless (scalar @ARGV) {
@@ -45,6 +46,7 @@ foreach my $arg (@ARGV) {
 	elsif ($arg =~ /^-+c(ollect)*=(.+)$/)       { $collectServer = $2; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
 	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; }
+	elsif ($arg =~ /^-+p(rist)*/)               { $pristineMode = 'pristine'; }
 	elsif ($arg =~ /^-+v(erbose)*$/)            { $verbose = 1; }
 	elsif ($cmdList =~ /\b$arg\b/)              { $mode = $arg; }
 	else { push (@extraArgs, $arg); }
@@ -82,10 +84,11 @@ exit 0;
 sub doArgs {
 	my $helpLength = shift;
 
-	print "usage: $0 [-v] [-h] <command> [<assetObj>|<poolObj>]\n";
-	print "  [<assetObj>|<poolObj>...] [--data=<dataList>]\n";
+	print "usage: $0 <command> [<assetObj>|<poolObj>] [<assetObj>|<poolObj>...]\n";
+	print "  [-v|--verboase] [-h|--help] [-d=<dataList>|--data=<dataList>] [-p|--pristine]\n";
 	print "\n";
 	print "  -h        Long version help. Run without arguments for short help.\n";
+	print "  -p        Pristine mode - don't reformat data values to be more (human-)readable.\n";
 	print "  -v        Verbose/debugging output\n";
 	print "  <command> is one of $cmdList.\n";
 	print "\n";
@@ -398,6 +401,9 @@ sub reportAssets {
 
 					# if this data matches the list they want, put into report
 					if ($dataList =~ /\b$dataName\b/) {
+						if (!$pristineMode && $dataVal =~ /^(\d+)$/) {
+							$dataVal = addCommas($dataVal);
+						}
 						$reportHash->{$foundAsset}->{$dataName} = $dataVal;
 					} else {
 						$reportHash->{$foundAsset}->{$dataName} = "__O_GOD_UNFOUND__";
@@ -468,5 +474,14 @@ sub renameAssets {
 	}
 
 	print " - Renamed $assetToRename --> $assetNewName\n";
+}
+
+# make a number filled with commas - humans hate to see a number like
+# 57106739592. It's really confusing.
+sub addCommas {
+	my $theNumber = shift;
+	$theNumber = reverse $theNumber;
+	$theNumber =~ s<(\d\d\d)(?=\d)(?!\d*\.)><$1,>g;
+	return reverse $theNumber;
 }
 
