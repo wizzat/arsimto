@@ -174,7 +174,7 @@ sub addAssets {
 			print " - Collecting information about $asset via SSH from $collectServer...\n";
 			if ($verbose) { print STDERR "   - Collecting intIP\n"; }
 
-			my $ifConfig = `ssh $collectServer "ifconfig | grep addr:10"`;
+			my $ifConfig = `ssh $collectServer "ifconfig | egrep 'addr:10|addr:192.168'"`;
 			my $intIP = 0;
 			if ($ifConfig =~ /addr:(.+?)\s+/) {
 				$intIP = $1;
@@ -354,6 +354,7 @@ sub collectAssetList {
 		} else {
 			# do they want all assets or just an intersection from the pools?
 			foreach my $foundAsset (@assetsFound) {
+				if ($verbose) { print STDERR " - Adding $foundAsset from $listDest\n"; }
 				$assetHash->{$foundAsset} = 1;
 			}
 		}
@@ -391,9 +392,10 @@ sub reportAssets {
 	$assetList = collectAssetList();
 
 	foreach my $foundAsset (@{$assetList}) {
-		$objectList .= `find -L $assetDir/$foundAsset -type f -name '*:*' 2>/dev/null`;
+		$objectList = `find -L $assetDir/$foundAsset -type f -name '*:*' 2>/dev/null`;
 
 		if ($objectList) {
+			if ($verbose) { print STDERR " - Found attributes for $foundAsset - adding them...\n"; }
 			# next, grab out the data we want and put into a hash of assets
 			foreach my $oneLine (split(/\n/, $objectList)) {
 				if ($oneLine =~ /$foundAsset\/(.+?):(.+)$/) {
@@ -412,6 +414,7 @@ sub reportAssets {
 				}
 			}
 		} else {
+			if ($verbose) { print STDERR " - No attributes for $foundAsset - adding with none.\n"; }
 			# the asset was in the Pool, but had no attributes, but we still want to
 			# see the object in the list
 			$reportHash->{$foundAsset}->{nil} = 1;
