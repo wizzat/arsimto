@@ -147,13 +147,16 @@ Amazon.
 
 Now let's see how things look:
 
-    arsimto ls Pools
-     () AWS --> OR,SF
-     () OR
-     () SF
-     () memcached
-     () mysql
-     () www
+    arsimto ls
+	(AWS) --> (OR) (SF) 
+	(OR) --> ++++++++++++++++++++
+	(SF) --> ++++++++++++++++++++
+	(memcached) --> ++++++++++++++++++++
+	(mysql) --> ++++++++++
+	(www) --> ++++++++++
+
+If a pool points to another pool, it shows up as `(PointingPool) --> (PointedPool)` and any
+further assets are printed as `+`. To see the actual asset, do `arsimto ls Pools/PointingPool`.
 
 Now let's move some servers around to complicate things, like real life:
 

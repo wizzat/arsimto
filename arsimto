@@ -14,12 +14,21 @@ use strict;
 use warnings;
 
 # things passed in via arguments
+my @extraArgs;
 my $mode = 0;
 my $verbose = 0;
 my $assetList = '';
 my $dataList = '';
 my $collectServer = 0;
-my @extraArgs;
+
+# colour-based variables
+my $colourisedOutput = 0;
+my $colourPalette = '0,36,32,35,34';
+my $regularColour = "";
+my $poolColour = "";
+my $assetColour = "";
+my $dataColour = "";
+my $summaryColour = "";
 
 # names of directories
 my $poolDir = "Pools";
@@ -44,6 +53,8 @@ foreach my $arg (@ARGV) {
 	if ($arg =~ /^-+h(elp)*$/)                  { doArgs('long'); exit 0; }
 	elsif ($arg =~ /^-+a(ssets)*=(.+)$/)        { $assetList = $2; }
 	elsif ($arg =~ /^-+c(ollect)*=(.+)$/)       { $collectServer = $2; }
+	elsif ($arg =~ /^-+c(olor)*$/)              { $colourisedOutput = 1; }
+	elsif ($arg =~ /^-+p(alette)*=(.+)$/)       { $colourPalette = $2; $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
 	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; }
 	elsif ($arg =~ /^-+p(rist)*/)               { $pristineMode = 'pristine'; }
@@ -57,6 +68,21 @@ unless ($mode) {
 	print STDERR "Commands: $cmdList. Use -h for long help or no arguments for short help.\n";
 	exit 255;
 }
+
+# variables to support colourised output
+if ($colourisedOutput) {
+	# input should be comma-separated list of numerals
+	my @cp = split (',', $colourPalette);
+	# add ANSI colour commands around the values - final looks like ^[[32m
+	for (my $i=0; $i < scalar @cp; $i++) {
+		$cp[$i] = chr(27) . '[' . $cp[$i] . 'm';
+	}
+	($regularColour, $poolColour, $assetColour, $dataColour, $summaryColour) = @cp;
+}
+
+# regardless of anything previous, if they're not on a terminal, don't
+# output colour codes
+unless (-t STDOUT) { $colourisedOutput = 0; }
 
 # determine the mode they're requesting and do the needful
 if ($mode eq 'add') {
@@ -86,9 +112,12 @@ sub doArgs {
 
 	print "usage: $0 <command> [<assetObj>|<poolObj>] [<assetObj>|<poolObj>...]\n";
 	print "  [-v|--verboase] [-h|--help] [-d=<dataList>|--data=<dataList>] [-p|--pristine]\n";
+	print "  [-c|--color] [-p=<p1,p2,p3,p4,p5>|--palette=<p1,p2,p3,p4,p5>]\n";
 	print "\n";
 	print "  -h        Long version help. Run without arguments for short help.\n";
 	print "  -p        Pristine mode - don't reformat data values to be more (human-)readable.\n";
+	print "  -c        Or --color, output in colorized mode.\n";
+	print "  -p=...    Or --palette=..., the colors to output. ANSI color codes. Default is $colourPalette.\n";
 	print "  -v        Verbose/debugging output\n";
 	print "  <command> is one of $cmdList.\n";
 	print "\n";
@@ -307,12 +336,24 @@ sub listAssets {
 		# and if they match top-level pool, create two-way link between
 		# them in the hash
 		foreach my $currPool (@poolList) {
+			my $assetCount = 0;
 			my @assetList = split(/\n/, `ls -1 $poolDir/$currPool`);
 
 			foreach my $oneAsset (@assetList) {
 				if (defined $reportHash->{$oneAsset}) {
 					if ($verbose) { print STDERR "   - Setting $currPool --> $oneAsset link\n"; }
-					$reportHash->{$currPool}->{'children'} .= "$oneAsset,";
+					$reportHash->{$currPool}->{'children'} .= "($oneAsset) ";
+				} else {
+					$assetCount++;
+				}
+			}
+			if ($assetCount) {
+				if ($colourisedOutput) {
+					$reportHash->{$currPool}->{'children'} .= $assetColour;
+				}
+				$reportHash->{$currPool}->{'children'} .= "+" x $assetCount;
+				if ($colourisedOutput) {
+					$reportHash->{$currPool}->{'children'} .= $regularColour;
 				}
 			}
 		}
@@ -395,10 +436,13 @@ sub outputHashTree {
 
 	foreach my $parentKey (sort keys %{$hashToTraverse}) {
 		if ($hashToTraverse->{$parentKey}->{'parent'} eq $rootLevel) {
-			print " () $parentKey";
+			print "($parentKey)";
 			if (defined $hashToTraverse->{$parentKey}->{'children'}) {
 				$hashToTraverse->{$parentKey}->{'children'} =~ s/,$//;
-				print " --> " . $hashToTraverse->{$parentKey}->{'children'};
+				print " --> ";
+				if ($colourisedOutput) { print $poolColour; }
+				print $hashToTraverse->{$parentKey}->{'children'};
+				if ($colourisedOutput) { print $regularColour; }
 			}
 			print "\n";
 		}
@@ -445,13 +489,17 @@ sub reportAssets {
 	# output the report
 	my $reportRows = 0;
 	foreach my $assetName (sort keys %{$reportHash}) {
+		if ($colourisedOutput) { print $assetColour; }
 		print "$assetName";
+		if ($colourisedOutput) { print $regularColour; }
 		foreach my $dataName (split(/,/, $dataList)) {
 			if ($verbose) { print STDERR " - Outputting $dataName\n"; }
 
+			if ($colourisedOutput) { print $dataColour; }
 			if ($dataName eq '*') {
 				foreach my $key (keys %{$reportHash->{$assetName}}) {
-					print "\t" . $reportHash->{$assetName}->{$key};
+					print "\t";
+					print $reportHash->{$assetName}->{$key};
 				}
 			} elsif ($dataName =~ /^"(.+?)"$/) {
 				print "\t$1";
@@ -460,13 +508,18 @@ sub reportAssets {
 			} else {
 				print "\t__UNDEF__";
 			}
+			if ($colourisedOutput) { print $regularColour; }
 		}
 		print "\n";
 		$reportRows++;
 	}
 	# if they're in a terminal, tell them how many matching assets. if they're piping
 	# then skip that. it'll just confuse things.
-	if (-t STDOUT) { print STDERR " - $reportRows matching assets.\n"; }
+	if (-t STDOUT) {
+		if ($colourisedOutput) { print STDERR $summaryColour; }
+		print STDERR " - $reportRows matching assets.\n";
+		if ($colourisedOutput) { print STDERR $regularColour; }
+	}
 }
 
 sub renameAssets {
