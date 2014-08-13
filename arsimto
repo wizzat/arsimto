@@ -157,16 +157,37 @@ sub doArgs {
 
 # add assets to the database
 sub addAssets {
+	my $actionTaken = "Added new";
+
 	foreach my $asset (@extraArgs) {
 		# make the dir for the asset to store its data
-		system ("mkdir -p $assetDir/$asset");
+		if (-d "$assetDir/$asset") {
+			$actionTaken = "Modified existing";
+		} else {
+			system ("mkdir -p $assetDir/$asset");
+		}
 
 		# put in each data key:value pair
 		foreach my $data (split(/,/, $dataList)) {
+			my ($key, $val);
+			if ($data =~ /^(.+?):(.+)$/) {
+				$key = $1;
+				$val = $2;
+			}
+			if ($verbose) { print STDERR " - Adding $key for $asset\n"; }
+
+			# search for existing keys and replace them
+			my $existingKeys = `find -L $assetDir/$asset/$key* 2>/dev/null`;
+			if ($existingKeys) {
+				if ($verbose) { print STDERR " - Removing old keys $key for $asset\n"; }
+				system ("rm -f $assetDir/$asset/$key*");
+			}
+
+			# create the new key
 			system ("touch $assetDir/$asset/$data");
 		}
 
-		print " - Added Asset $asset\n";
+		print " - $actionTaken Asset $asset\n";
 
 		# TODO: use facter or something real
 		# if they want us to collect some info automagically...
