@@ -175,7 +175,7 @@ sub addAssets {
 			if ($verbose) { print STDERR "   - Collecting intIP\n"; }
 
 			my $ifConfig = `ssh $collectServer "ifconfig | grep addr:10"`;
-			my $intIP = "Unknown";
+			my $intIP = 0;
 			if ($ifConfig =~ /addr:(.+?)\s+/) {
 				$intIP = $1;
 			}
@@ -189,7 +189,7 @@ sub addAssets {
 			chomp ($cpuCount);
 
 			if ($verbose) { print STDERR "   - Collecting Memory\n"; }
-			my $memory = "Unknown";
+			my $memory = 0;
 			my $memUnits = "?";
 			my $memInfo = `ssh $collectServer "cat /proc/meminfo | grep ^MemTotal"`;
 			if ($memInfo =~ /(\d+)\s+(\w+)$/) {
@@ -197,10 +197,11 @@ sub addAssets {
 				$memUnits = $2;
 			}
 
-			system ("touch $assetDir/$asset/ip:$extIP");
-			system ("touch $assetDir/$asset/intip:$intIP");
-			system ("touch $assetDir/$asset/cpus:$cpuCount");
-			system ("touch $assetDir/$asset/mem$memUnits:$memory");
+			# if we collected a piece of data, put it into the asset
+			if ($extIP)    { system ("touch $assetDir/$asset/ip:$extIP"); }
+			if ($intIP)    { system ("touch $assetDir/$asset/intip:$intIP"); }
+			if ($cpuCount) { system ("touch $assetDir/$asset/cpus:$cpuCount"); }
+			if ($memory)   { system ("touch $assetDir/$asset/mem$memUnits:$memory"); }
 		}
 	}
 }
