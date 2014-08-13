@@ -447,7 +447,10 @@ sub reportAssets {
 	foreach my $assetName (sort keys %{$reportHash}) {
 		print "$assetName";
 		foreach my $dataName (split(/,/, $dataList)) {
-			if (defined $reportHash->{$assetName}->{$dataName}) {
+			if ($verbose) { print STDERR " - Outputting $dataName\n"; }
+			if ($dataName =~ /^"(.+?)"$/) {
+				print "\t$1";
+			} elsif (defined $reportHash->{$assetName}->{$dataName}) {
 				print "\t" . $reportHash->{$assetName}->{$dataName};
 			} else {
 				print "\t__UNDEF__";
