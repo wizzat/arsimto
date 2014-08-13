@@ -36,14 +36,6 @@ the power to express the solution to this problem. A simple wrapper script that
 adds assets and does various commands should suffice to express the solution to
 the problem.
 
-So far, the list of Unix commands I've needed to achieve the goal:
-
- * find
- * ls
- * mv
- * ln
- * rm
-
 Assets
 ======
 
@@ -83,14 +75,40 @@ example), a Pool can appear in two other Pools.
 The purpose of Pools is to avoid having to type all the names of every Asset or
 Pool that are logically grouped every time. 
 
-Examples / Tutorial
-===================
+Examples
+========
+
+Generate DNS records for all the Staging Couchbase servers:
+
+    $ arsimto ls -i Pools/Couchbases/ Pools/Staging/ -d='"IN       CNAME",ip'
+    couch-1.dnsbit	IN	CNAME	192.168.0.5
+    couch-2.dnsbit	IN	CNAME	192.168.0.1
+    couch-3.dnsbit	IN	CNAME	192.168.0.3
+
+Generate Ansible hosts file for all Production MySQL servers:
+
+    $ echo "[RunOnTheseHosts]" ; \
+		arsimto ls -p -i Pools/Production/ Pools/MySQLs/ -d=ip,memkB,dnsname | \
+	   	awk '{print $2"   mem="$3"   dnsname="$4}'
+	[RunOnTheseHosts]
+	192.168.1.212     mem=70196916   dnsname=mysql1a.dc.tld
+	192.168.96.109    mem=70196916   dnsname=mysql1b.dc.tld
+	192.168.96.125    mem=70196916   dnsname=mysql1c.dc.tld
+	192.168.254.152   mem=70196916   dnsname=mysql2a.dc.tld
+	192.168.121.239   mem=70196916   dnsname=mysql2b.dc.tld
+	192.168.18.82     mem=70196916   dnsname=mysql2c.dc.tld
+	192.168.254.206   mem=70197168   dnsname=mysql3a.dc.tld
+	192.168.254.149   mem=70197168   dnsname=mysql3b.dc.tld
+	192.168.254.139   mem=70197168   dnsname=mysql3c.dc.tld
+
+Tutorial
+========
 
 If you run `arsimto -h` you will get a verbose help output including "Examples"
 commands that, when run in order, will create a very simple datacenter. Here we
 will do a slightly more-complex real-world setup with more assets. All the
-following happens in a Linux BASH shell. Let's begin by creating a number of
-assets:
+following happens in a Linux BASH (things might be a bit odd on OSX) shell.
+Let's begin by creating a number of assets:
 
     for i in {01..20} ; do arsimto add server-$i.or --data=ip:10.2.0.$i ; done
     for i in {01..20} ; do arsimto add server-$i.sf --data=ip:10.2.1.$i ; done
@@ -178,18 +196,30 @@ FAQs
 ====
 
 ### Q: Backups?
-A: Try tar -zcvPf backup.tgz /path/to/arsimto/AssetsPoolsDir.
+A: Try tar -zcvPf backup.tgz /path/to/arsimto/AssetsPoolsDir. If you're
+diligent about committing changes into git everytime you make them, then you
+can also simply check out a previous revision.
 
 ### Q: Many simultaneous users?
 A: Try putting AssetsPoolsDir into git. This might also be considered your "backup."
 
 ### Q: Oh noes I deleted half my infrastructure!
-A: Did you do backups or keep everything in git? Try that.
+A: `git reset --hard` will revert everything back to your previous commit/pull.
+
+### Q: How can I tie this into Ansible?
+A: You can write a plugin, but I'm too lazy. There's an example above about how
+to do this, which I'll flesh out a little more here:
+
+	ansibleInventory=~/tmp/ansibleInventory/inventoryFile.cfg
+	echo "[RunOnTheseHosts]" > $ansibleInventory
+	arsimto ls -p -i Pools/Production/ Pools/MySQLs/ -d=ip,memkB,dnsname | \
+		awk '{print $2"   mem="$3"   dnsname="$4}' >> $ansibleInventory
+	ansible-playbook -i $ansibleInventory playbook.yml
 
 ### Q: Pool nesting hierarchies?
 A: No. Pool namespace is flat. See this example:
 
-    arsimto ls Pools/
+	arsimto ls Pools/
 	AWS --> OR,SF
 	OR
 	Rackspace --> OR
@@ -212,13 +242,13 @@ confusing aspect now.
 A: Sure. This makes sense for things like circular replication rings in MySQL,
 for example. Here's what it looks like:
 
-    arsimto ln server1234 server5678
-    arsimto ln server5678 server8901
-    arsimto ln server8901 server1234
-    arsimto ls Pools/
-    () server1234 --> server5678
-    () server5678 --> server8901
-    () server8901 --> server1234
+	arsimto ln server1234 server5678
+	arsimto ln server5678 server8901
+	arsimto ln server8901 server1234
+	arsimto ls Pools/
+	() server1234 --> server5678
+	() server5678 --> server8901
+	() server8901 --> server1234
 
 Performance
 ===========

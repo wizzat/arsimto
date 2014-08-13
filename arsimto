@@ -424,7 +424,7 @@ sub reportAssets {
 					my $dataVal = $2;
 
 					# if this data matches the list they want, put into report
-					if ($dataList =~ /\b$dataName\b/) {
+					if ($dataList eq '*' || $dataList =~ /\b$dataName\b/) {
 						if (!$pristineMode && $dataVal =~ /^(\d+)$/) {
 							$dataVal = addCommas($dataVal);
 						}
@@ -448,7 +448,12 @@ sub reportAssets {
 		print "$assetName";
 		foreach my $dataName (split(/,/, $dataList)) {
 			if ($verbose) { print STDERR " - Outputting $dataName\n"; }
-			if ($dataName =~ /^"(.+?)"$/) {
+
+			if ($dataName eq '*') {
+				foreach my $key (keys %{$reportHash->{$assetName}}) {
+					print "\t" . $reportHash->{$assetName}->{$key};
+				}
+			} elsif ($dataName =~ /^"(.+?)"$/) {
 				print "\t$1";
 			} elsif (defined $reportHash->{$assetName}->{$dataName}) {
 				print "\t" . $reportHash->{$assetName}->{$dataName};
