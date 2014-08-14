@@ -20,6 +20,7 @@ my $verbose = 0;
 my $assetList = '';
 my $dataList = '';
 my $collectServer = 0;
+my $longMode = 0;
 
 # colour-based variables
 my $colourisedOutput = 0;
@@ -74,6 +75,7 @@ foreach my $arg (@ARGV) {
 	elsif ($arg =~ /^-+p(alette)*=(.+)$/)       { $colourPalette = $2; $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
 	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; }
+	elsif ($arg =~ /^-+l(ong)*/)                { $longMode = 1; }
 	elsif ($arg =~ /^-+p(rist)*/)               { $pristineMode = 'pristine'; }
 	elsif ($arg =~ /^-+v(erbose)*$/)            { $verbose = 1; }
 	elsif ($cmdList =~ /\b$arg\b/)              { $mode = $arg; }
@@ -129,11 +131,12 @@ sub doArgs {
 
 	print "usage: $0 <command> [<assetObj>|<poolObj>] [<assetObj>|<poolObj>...]\n";
 	print "  [-v|--verboase] [-h|--help] [-d=...|--data=<dataList>] [-p|--pristine]\n";
-	print "  [-c|--color] [-p=...|--palette=<p1,p2,p3,p4,p5>]\n";
+	print "  [-c|--color] [-l|--long] [-p=...|--palette=<p1,p2,p3,p4,p5>]\n";
 	print "  [-r=...|--rcfile=<rcFile>]\n";
 	print "\n";
 	print "  -h        Long version help. Run without arguments for short help.\n";
-	print "  -p        Pristine mode - don't reformat data values to be more (human-)readable.\n";
+	print "  -l        Or --long. Long output for Pools/ listing.\n";
+	print "  -p        Or --pristine. Don't reformat data values to be more (human-)readable.\n";
 	print "  -c        Or --color, output in colorized mode.\n";
 	print "  -p=...    Or --palette=..., the colors to output. ANSI color codes. Default is $colourPalette.\n";
 	print "  -v        Verbose/debugging output\n";
@@ -366,7 +369,11 @@ sub listAssets {
 			foreach my $oneAsset (@assetList) {
 				if (defined $reportHash->{$oneAsset}) {
 					if ($verbose) { print STDERR "   - Setting $currPool --> $oneAsset link\n"; }
-					$reportHash->{$currPool}->{'children'} .= "($oneAsset) ";
+					if ($longMode) {
+						$reportHash->{$currPool}->{'children'} .= "($oneAsset) ";
+					} else {
+						$reportHash->{$currPool}->{'children'} .= "()";
+					}
 				} else {
 					$assetCount++;
 				}
@@ -522,9 +529,21 @@ sub reportAssets {
 	# output the report
 	my $reportRows = 0;
 	foreach my $assetName (sort keys %{$reportHash}) {
-		if ($colourisedOutput) { print $assetColour; }
-		print "$assetName";
-		if ($colourisedOutput) { print $regularColour; }
+		# if it's an Asset/, print it as asset color and if long output with a
+		# preceding +. If it's a Pool/, print it pool color with a () preceding.
+		if (-e "$poolDir/$assetName") {
+			if ($colourisedOutput) { print $poolColour; }
+			if ($longMode) { print "() "; }
+			print "$assetName";
+			if ($colourisedOutput) { print $regularColour; }
+		} else {
+			if ($colourisedOutput) { print $assetColour; }
+			if ($longMode) { print " + "; }
+			print "$assetName";
+			if ($colourisedOutput) { print $regularColour; }
+		}
+
+		# output the data they requested
 		foreach my $dataName (split(/,/, $dataList)) {
 			if ($verbose) { print STDERR " - Outputting $dataName\n"; }
 
@@ -543,6 +562,8 @@ sub reportAssets {
 			}
 			if ($colourisedOutput) { print $regularColour; }
 		}
+
+		# newline! :)
 		print "\n";
 		$reportRows++;
 	}

@@ -61,11 +61,11 @@ object is an Asset. However, you can also aggregate several Pools underneath
 another like this:
 
     arsimto ln mainapp memcached mysql www
-    arsimto ls Pools/
-    mainapp --> memcached,mysql,www
-    memcached
-    mysql
-    www
+    arsimto ls -l Pools/
+    (mainapp) --> (memcached) (mysql) (www)
+    (memcached) --> +++
+    (mysql) --> +++
+    (www) --> +++
 
 The Pool namespace is flat. The Pools aren't contained within each other.
 They're merely aggregated by the linking Pool. In precisely the same way an
@@ -147,7 +147,7 @@ Amazon.
 
 Now let's see how things look:
 
-    arsimto ls
+    arsimto ls -l
 	(AWS) --> (OR) (SF) 
 	(OR) --> ++++++++++++++++++++
 	(SF) --> ++++++++++++++++++++
@@ -222,14 +222,14 @@ to do this, which I'll flesh out a little more here:
 ### Q: Pool nesting hierarchies?
 A: No. Pool namespace is flat. See this example:
 
-	arsimto ls Pools/
-	AWS --> OR,SF
-	OR
-	Rackspace --> OR
-	SF
-	memcached
-	mysql
-	www
+	arsimto ls -l Pools/
+	(AWS) --> (OR) (SF)
+	(OR)
+	(Rackspace) --> (OR)
+	(SF)
+	(memcached)
+	(mysql)
+	(www)
 
 AWS points to the OR (and SF) pool, but so does Rackspace. This doesn't mean
 there are distinct AWS/OR and Rackspace/OR pools. It means they both point to
@@ -249,9 +249,9 @@ for example. Here's what it looks like:
 	arsimto ln server5678 server8901
 	arsimto ln server8901 server1234
 	arsimto ls Pools/
-	() server1234 --> server5678
-	() server5678 --> server8901
-	() server8901 --> server1234
+	(server1234) --> (server5678)
+	(server5678) --> (server8901)
+	(server8901) --> (server1234)
 
 Performance
 ===========
@@ -306,6 +306,10 @@ Now let's do some timings!
     real    0m11.634s
     user    0m7.338s
     sys     0m4.528s
+	time arsimto ls -l memcached --data=ram,disk,mac
+	real    0m9.403s <--cache effect, should be slower than without --data= option
+	user    0m0.108s
+	sys     0m0.492s
     time arsimto rename server8696 varnish8696
     real    0m1.674s
     user    0m0.167s
@@ -319,6 +323,3 @@ Now let's do some timings!
     user    0m4.320s
     sys     0m2.857s
 
-Note that doing `arsimto ls memcached --data=ram,disk` wasn't appreciably
-different in speed as doing it without the `--data=` flag (it was, in fact,
-slightly faster due to caching).
