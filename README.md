@@ -101,13 +101,19 @@ Generate Ansible hosts file for all Production MySQL servers:
 	192.168.254.149   mem=70197168   dnsname=mysql3b.dc.tld
 	192.168.254.139   mem=70197168   dnsname=mysql3c.dc.tld
 
-Re-collect all data for a given set of hosts (maybe you replaced some hardware):
+Re-collect all data for a given set of hosts (maybe you replaced some hardware).
+Remove the final `| sh` portion if you want to see what it would do without actually
+doing it:
 
 	arsimto ls -i Pools/Production/ Pools/Memcached/ -d=name,ip \
 		| awk '{print "arsimto add "$1" --collect="$2}' \
 		| sh
 
-Remove the final `| sh` portion if you want to see what it would do.
+Change the hostname of all hosts in a Pool to match the inventory:
+
+	arsimto ls Pools/Memcached/ -d=ip,dnsname \
+	   | awk '{print "echo "$1" ; ssh "$1" \"sudo hostname "$2"\""}' \
+	   | sh
 
 Tutorial
 ========
