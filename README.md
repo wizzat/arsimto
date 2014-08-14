@@ -80,16 +80,16 @@ Examples
 
 Generate DNS records for all the Staging Couchbase servers:
 
-    $ arsimto ls -i Pools/Couchbases/ Pools/Staging/ -d='"IN       CNAME",ip'
-    couch-1.dnsbit	IN	CNAME	192.168.0.5
-    couch-2.dnsbit	IN	CNAME	192.168.0.1
-    couch-3.dnsbit	IN	CNAME	192.168.0.3
+    $ arsimto ls -i Pools/Couchbases/ Pools/Staging/ -d='name,"IN","CNAME",ip'
+    couch-1.bit	IN	CNAME	192.168.0.5
+    couch-2.bit	IN	CNAME	192.168.0.1
+    couch-3.bit	IN	CNAME	192.168.0.3
 
 Generate Ansible hosts file for all Production MySQL servers:
 
     $ echo "[RunOnTheseHosts]" ; \
-		arsimto ls -p -i Pools/Production/ Pools/MySQLs/ -d=ip,memkB,dnsname | \
-	   	awk '{print $2"   mem="$3"   dnsname="$4}'
+		arsimto ls -p -i Pools/Production/ Pools/MySQLs/ -d=ip,memkB,dnsname \
+		| awk '{print $1"   mem="$2"   dnsname="$3}'
 	[RunOnTheseHosts]
 	192.168.1.212     mem=70196916   dnsname=mysql1a.dc.tld
 	192.168.96.109    mem=70196916   dnsname=mysql1b.dc.tld
@@ -100,6 +100,14 @@ Generate Ansible hosts file for all Production MySQL servers:
 	192.168.254.206   mem=70197168   dnsname=mysql3a.dc.tld
 	192.168.254.149   mem=70197168   dnsname=mysql3b.dc.tld
 	192.168.254.139   mem=70197168   dnsname=mysql3c.dc.tld
+
+Re-collect all data for a given set of hosts (maybe you replaced some hardware):
+
+	arsimto ls -i Pools/Production/ Pools/Memcached/ -d=name,ip \
+		| awk '{print "arsimto add "$1" --collect="$2}' \
+		| sh
+
+Remove the final `| sh` portion if you want to see what it would do.
 
 Tutorial
 ========
@@ -165,7 +173,7 @@ Now let's move some servers around to complicate things, like real life:
 
 Now what do things look like?
 
-    arsimto ls --intersect Pools/www Pools/OR --data=ip,disk,ram,network
+    arsimto ls --intersect Pools/www Pools/OR --data=name,ip,disk,ram,network
     server-08.or	10.2.0.08	1tB	8GB	10gb
     server-09.or	10.2.0.09	1tB	8GB	10gb
     server-10.or	10.2.0.10	1tB	8GB	10gb
@@ -198,6 +206,32 @@ and "grep" commands on the output reports occasionally.
 FAQs
 ====
 
+### Q: Reserved or special Data key names?
+A: Unfortunately, yes. `name` is reserved. Also `*` is reserved, though you
+probably weren't thinking of using it.
+
+The following are special names, and I recommend you use these precise key
+names for the purpose outlined. In the future, the script might do extra
+goodness based on them:
+
+ * cpus :: Number of CPUs the system has.
+ * diskMB :: `MB` of all disks combined on the Asset
+ * diskMB-[DEV] :: `MB` of disk space available on device `DEV`.
+ * dnsname :: The DNS name of the Asset. I use this as "desired DNS name" until
+   it's actually in DNS, at which point it is "actual DNS name."
+ * ip :: globally-addressable or public IP address. Any machine in your
+   infrastructure that should be able to reach this Asset would reach
+   it via this IP address. This is typically 192.168.0.0/16.
+ * intip :: private IP address. Only certain machines would be able to
+   reach this Asset via this IP address. This is typically 10.0.0.0/8.
+ * mac :: The MAC address of the zeroeth NIC.
+ * mac-[IFACE] :: The MAC address of the NIC mapped to `IFACE`.
+ * mbit :: Network bandwidth of all interfaces on Asset combined.
+ * mbit-[IFACE] :: Network bandwidth capability of `IFACE` in MBit/sec.
+ * memkB :: kilobytes of RAM this Asset has. The `kB` capitalized like that
+   is a consequence of how Linux reports memory in /proc/meminfo. I personally
+   would prefer `KB`.
+
 ### Q: Backups?
 A: Try tar -zcvPf backup.tgz /path/to/arsimto/AssetsPoolsDir. If you're
 diligent about committing changes into git everytime you make them, then you
@@ -222,8 +256,8 @@ to do this, which I'll flesh out a little more here:
 
 	ansibleInventory=~/tmp/ansibleInventory/inventoryFile.cfg
 	echo "[RunOnTheseHosts]" > $ansibleInventory
-	arsimto ls -p -i Pools/Production/ Pools/MySQLs/ -d=ip,memkB,dnsname | \
-		awk '{print $2"   mem="$3"   dnsname="$4}' >> $ansibleInventory
+	arsimto ls -p -i Pools/Production/ Pools/MySQLs/ -d=ip,memkB,dnsname \
+		| awk '{print $1"   mem="$2"   dnsname="$3}' >> $ansibleInventory
 	ansible-playbook -i $ansibleInventory playbook.yml
 
 ### Q: Pool nesting hierarchies?
@@ -313,7 +347,7 @@ Now let's do some timings!
     real    0m11.634s
     user    0m7.338s
     sys     0m4.528s
-	time arsimto ls -l memcached --data=ram,disk,mac
+	time arsimto ls -l memcached --data=name,ram,disk,mac
 	real    0m9.403s <--cache effect, should be slower than without --data= option
 	user    0m0.108s
 	sys     0m0.492s

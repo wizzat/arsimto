@@ -493,9 +493,12 @@ sub outputHashTree {
 sub reportAssets {
 	my $objectList = '';
 	my $reportHash;
+	my $outputCol = 0;
 
 	$assetList = collectAssetList();
 
+	# this is a list of actual Assets, which might also be Pools - so collect
+	# Data attributes for each asset first
 	foreach my $foundAsset (@{$assetList}) {
 		$objectList = `find -L $assetDir/$foundAsset -type f -name '*:*' 2>/dev/null`;
 
@@ -526,46 +529,58 @@ sub reportAssets {
 		}
 	}
 
-	# output the report
+	# if they specify nothing, show them Asset names
+	unless ($dataList) { $dataList = 'name'; }
+
+	# we now have all assets and their Data attributes - output the report
 	my $reportRows = 0;
 	foreach my $assetName (sort keys %{$reportHash}) {
 		# if it's an Asset/, print it as asset color and if long output with a
 		# preceding +. If it's a Pool/, print it pool color with a () preceding.
-		if (-e "$poolDir/$assetName") {
+		if (-e "$poolDir/$assetName" && $dataList =~ /\bname\b/) {
 			if ($colourisedOutput) { print $poolColour; }
 			if ($longMode) { print "() "; }
 			print "$assetName";
 			if ($colourisedOutput) { print $regularColour; }
-		} else {
+			$outputCol++;
+		} elsif ($dataList =~ /\bname\b/) {
 			if ($colourisedOutput) { print $assetColour; }
 			if ($longMode) { print " + "; }
 			print "$assetName";
 			if ($colourisedOutput) { print $regularColour; }
+			$outputCol++;
 		}
 
 		# output the data they requested
 		foreach my $dataName (split(/,/, $dataList)) {
-			if ($verbose) { print STDERR " - Outputting $dataName\n"; }
+			next if ($dataName eq 'name');
 
+			# random stuff to print depending on situation
+			if ($verbose) { print STDERR " - Outputting $dataName\n"; }
 			if ($colourisedOutput) { print $dataColour; }
+			if ($outputCol) { print "\t"; }
+
 			if ($dataName eq '*') {
 				foreach my $key (keys %{$reportHash->{$assetName}}) {
-					print "\t";
 					print $reportHash->{$assetName}->{$key};
 				}
 			} elsif ($dataName =~ /^"(.+?)"$/) {
-				print "\t$1";
+				print "$1";
 			} elsif (defined $reportHash->{$assetName}->{$dataName}) {
-				print "\t" . $reportHash->{$assetName}->{$dataName};
+				print $reportHash->{$assetName}->{$dataName};
 			} else {
-				print "\t__UNDEF__";
+				print "__UNDEF__";
 			}
+			$outputCol++;
+
+			# put terminal back into normal mode
 			if ($colourisedOutput) { print $regularColour; }
 		}
 
 		# newline! :)
 		print "\n";
 		$reportRows++;
+		$outputCol = 0;
 	}
 	# if they're in a terminal, tell them how many matching assets. if they're piping
 	# then skip that. it'll just confuse things.
