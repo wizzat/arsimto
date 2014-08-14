@@ -48,6 +48,23 @@ unless (scalar @ARGV) {
 	exit 255;
 }
 
+# if they want an rcfile, must be first arg
+my $rcFile = $ENV{"HOME"} . "/.arsimtorc";
+if ($ARGV && $ARGV[0] =~ /^-+r(cfile)*=(.+)$/) { $rcFile = $2; }
+
+# read in rcfile if it exists - it'll just be args
+if (open (IFILE, "< $rcFile")) {
+	my $inLine;
+	while ($inLine = <IFILE>) {
+		chomp ($inLine);
+		# must put args from rcfile at start so options passed on the
+		# commandline will override them
+		if ($inLine =~ /^-+(\w+)/) {
+			unshift (@ARGV, $inLine);
+		}
+	}
+}
+
 # parse input arguments. put anything unparsed onto @extraArgs
 foreach my $arg (@ARGV) {
 	if ($arg =~ /^-+h(elp)*$/)                  { doArgs('long'); exit 0; }
@@ -111,8 +128,9 @@ sub doArgs {
 	my $helpLength = shift;
 
 	print "usage: $0 <command> [<assetObj>|<poolObj>] [<assetObj>|<poolObj>...]\n";
-	print "  [-v|--verboase] [-h|--help] [-d=<dataList>|--data=<dataList>] [-p|--pristine]\n";
-	print "  [-c|--color] [-p=<p1,p2,p3,p4,p5>|--palette=<p1,p2,p3,p4,p5>]\n";
+	print "  [-v|--verboase] [-h|--help] [-d=...|--data=<dataList>] [-p|--pristine]\n";
+	print "  [-c|--color] [-p=...|--palette=<p1,p2,p3,p4,p5>]\n";
+	print "  [-r=...|--rcfile=<rcFile>]\n";
 	print "\n";
 	print "  -h        Long version help. Run without arguments for short help.\n";
 	print "  -p        Pristine mode - don't reformat data values to be more (human-)readable.\n";
@@ -293,6 +311,12 @@ sub lnAssets {
 	if (scalar @extraArgs > 1) {
 		my $parentAsset = shift (@extraArgs);
 
+		# if they prefixed the parentAsset with Pools/, remove that bit
+		if ($parentAsset =~ /^(.*$poolDir\/)(.+)$/) {
+			$parentAsset = $2;
+		}
+
+		# all these are linkees
 		foreach my $childAsset (@extraArgs) {
 			# every pool should also be an asset so it can have data
 			system ("mkdir -p $poolDir/$parentAsset && mkdir -p $assetDir/$childAsset");
@@ -433,10 +457,12 @@ sub outputHashTree {
 	my $hashToTraverse = shift;
 	my $rootLevel = shift;
 	my $indent = shift;
+	my $reportRows = 0;
 
 	foreach my $parentKey (sort keys %{$hashToTraverse}) {
 		if ($hashToTraverse->{$parentKey}->{'parent'} eq $rootLevel) {
 			print "($parentKey)";
+			$reportRows++;
 			if (defined $hashToTraverse->{$parentKey}->{'children'}) {
 				$hashToTraverse->{$parentKey}->{'children'} =~ s/,$//;
 				print " --> ";
@@ -446,6 +472,13 @@ sub outputHashTree {
 			}
 			print "\n";
 		}
+	}
+	# if they're in a terminal, tell them how many matching Pools. if they're piping
+	# then skip that. it'll just confuse things.
+	if (-t STDOUT) {
+		if ($colourisedOutput) { print STDERR $summaryColour; }
+		print STDERR " - $reportRows pools.\n";
+		if ($colourisedOutput) { print STDERR $regularColour; }
 	}
 }
 

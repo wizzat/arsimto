@@ -1,0 +1,25 @@
+# put this file into $HOME/.arsimtorc or specify it as --rcfile=<location>
+# AS THE FIRST ARGUMENT to the script
+#
+# options for arsimto can be specified one per line exactly as you'd specify
+# them on the commandline. options in this file are overridden by the
+# commandline options passed
+#
+# do not try to specify the same option twice in this file, you'll probably be
+# surprised by the reverse-order of overrides
+
+## if you never want arsimto to make data more readable
+#--pristine
+
+## if you always want arsimto to be in color
+#--color
+
+## if you don't like the colors arsimto has chosen to be Righteous and True
+## in order:
+##     regularColour
+##     poolColour
+##     assetColour
+##     dataColour
+##     summaryColour
+#--palette=0,32,33,34,35
+
