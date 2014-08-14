@@ -205,6 +205,13 @@ can also simply check out a previous revision.
 
 ### Q: Many simultaneous users?
 A: Try putting AssetsPoolsDir into git. This might also be considered your "backup."
+If you're unfamiliar with git, have someone help you set it up, then what you'll
+be doing every time you change your infrastructure is:
+
+	git pull
+	git add Assets/ Pools/
+	git commit -am 'added X servers, removed Y, changed RAM for Z'
+	git push
 
 ### Q: Oh noes I deleted half my infrastructure!
 A: `git reset --hard` will revert everything back to your previous commit/pull.
