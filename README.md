@@ -31,10 +31,8 @@ understood by competent technical professionals.
 The Solution
 ============
 
-The Unix file system, with its directory structure and symlinking should have
-the power to express the solution to this problem. A simple wrapper script that
-adds assets and does various commands should suffice to express the solution to
-the problem.
+The Unix file system combined with a simple wrapper script should have the
+power to express the solution to this problem.
 
 Assets
 ======
@@ -62,9 +60,9 @@ Pools
 =====
 
 There is a directory Pools/ that contains one directory per logical grouping.
-Inside are symlinks to each object that belongs to that Pool. Typically that
-object is an Asset. However, you can also aggregate several Pools underneath
-another like this:
+Inside are directories corresponding to each object that belongs to that Pool.
+Typically that object is an Asset. However, you can also aggregate several
+Pools underneath another like this:
 
     arsimto ln mainapp memcached mysql www
     arsimto ls -l Pools/
@@ -207,13 +205,17 @@ keep these files in git or subversion so that users don't clobber each others'
 changes, and you don't have to worry about permissions of shared directories.
 
 The Unix filesystem is a tree structure. I am implementing a directed graph
-structure on top of the Unix filesystem by storing Pool names in a directory
-with symlinks to other Pools and Assets.
+structure on top of the Unix filesystem by storing Pool names and Asset names
+in directories. The Assets/ directory could be thought of as a list of Nodes
+with their related attributes. The Pools/ directory could be thought of as a
+list of Left Nodes of Edges, and directories inside each are the Right Nodes of
+the same Edges, with files inside the Right Node directory being the attributes
+of the Edge.
 
 The Unix filesystem has a very well-understood API. Because I'm not storing
 data in the files, only file names, the API to traverse the data outside of
-arsimto is "ls", "mv", "find", "rm", and "ln." You will likely be doing "sort"
-and "grep" commands on the output reports occasionally.
+arsimto is "ls", "mv", "find", "rm", and "mkdir." You will likely be doing
+"sort" and "grep" commands on the output reports occasionally.
 
 FAQs
 ====
@@ -288,11 +290,11 @@ AWS points to the OR (and SF) pool, but so does Rackspace. This doesn't mean
 there are distinct AWS/OR and Rackspace/OR pools. It means they both point to
 the same thing. This is almost certainly an error.
 
-Because links are implemented as symlinks within a directory, you can fool
-yourself by doing "arsimto ls Pools/GroupingPool/GroupedPool" and it will work.
-This helps reinforce the incorrect perception that there is nesting (aka
-Parent/Child) but such nesting does not exist. I apologize for this
-confusing aspect now.
+Because links are implemented as directories within a directory, you can fool
+yourself by doing "arsimto ls Pools/GroupingPool/GroupedPool" and it will give
+some sort of output (albeit confusing and "wrong").  This helps reinforce the
+incorrect perception that there is nesting (aka Parent/Child) but such nesting
+does not exist. I apologize for this confusing aspect now.
 
 ### Q: Cycles in the graph?
 A: Sure. This makes sense for things like circular replication rings in MySQL,

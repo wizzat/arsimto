@@ -227,7 +227,7 @@ sub addAssets {
 			if ($verbose) { print STDERR " - Adding $key for $asset\n"; }
 
 			# search for existing keys and replace them
-			my $existingKeys = `find -L $assetDir/$asset/$key* 2>/dev/null`;
+			my $existingKeys = `find $assetDir/$asset/$key* 2>/dev/null`;
 			if ($existingKeys) {
 				if ($verbose) { print STDERR " - Removing old keys $key for $asset\n"; }
 				system ("rm -f $assetDir/$asset/$key*");
@@ -322,14 +322,7 @@ sub lnAssets {
 		# all these are linkees
 		foreach my $childAsset (@extraArgs) {
 			# every pool should also be an asset so it can have data
-			system ("mkdir -p $poolDir/$parentAsset && mkdir -p $assetDir/$childAsset");
-
-			# by default the linkee is an asset...
-			system ("cd $poolDir/$parentAsset && ln -sf ../../$assetDir/$childAsset ./");
-
-			# ...if there's a Pool, make the linkee the Pool instead - Pools
-			# are essentially indexes of links
-			system ("if [ -d ../$childAsset ] ; then ln -sf ../$childAsset ./ ; fi");
+			system ("mkdir -p $poolDir/$parentAsset/$childAsset && mkdir -p $assetDir/$childAsset");
 			print " - Connected $parentAsset --> $childAsset\n";
 		}
 	} else {
@@ -500,7 +493,7 @@ sub reportAssets {
 	# this is a list of actual Assets, which might also be Pools - so collect
 	# Data attributes for each asset first
 	foreach my $foundAsset (@{$assetList}) {
-		$objectList = `find -L $assetDir/$foundAsset -type f -name '*:*' 2>/dev/null`;
+		$objectList = `find $assetDir/$foundAsset -type f -name '*:*' 2>/dev/null`;
 
 		if ($objectList) {
 			if ($verbose) { print STDERR " - Found attributes for $foundAsset - adding them...\n"; }
@@ -602,7 +595,7 @@ sub renameAssets {
 	}
 
 	if ($verbose) { print STDERR " - Locating all Pool objects linking to $assetDir/$assetToRename\n"; }
-	my $fileSystemNamesToRename = `find -L $poolDir -samefile $assetDir/$assetToRename`;
+	my $fileSystemNamesToRename = `find $poolDir $assetDir -name $assetToRename`;
 
 	# first rename the asset itself
 	if (-e "$assetDir/$assetNewName") {
@@ -624,7 +617,7 @@ sub renameAssets {
 		# but don't abort the procedure.
 		unless (-e "$linkLoc/$assetNewName") {
 			if ($verbose) { print STDERR " - Linking $assetDir/$assetNewName into $linkLoc and removing $assetToRename\n"; }
-			system ("cd $linkLoc && ln -s ../../$assetDir/$assetNewName ./ && rm $assetToRename");
+			system ("cd $linkLoc && mv $assetToRename $assetNewName");
 		}
 	}
 
