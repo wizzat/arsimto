@@ -42,15 +42,21 @@ Assets
 There is a directory Assets/ that contains one directory per asset. Inside are
 files named `[variable]:[value]` for example:
 
- * mac:32:a2:f3:c7:26:6a:20:f9:dd:a5:4e
- * ip:192.168.1.5
- * ram:32GB
  * cpus:8
+ * diskMB-sda1:12582912
+ * diskMB-sdb1:1098907648
+ * dnsname:hodor.foo.tld
+ * intip:10.0.0.1
+ * ip:192.168.1.5
+ * ip-eth0:192.168.1.5
+ * ip-eth1:10.0.0.1
+ * mac-eth0:32:a2:f3:c7:20:f9
+ * mac-eth1:32:a2:f3:c7:2f:5f
+ * memkB:16777216
 
 As you can see, values can have colons. The variable name cannot. Everything up
 to the first colon is the variable name (which you can report on). Try not to
-be creative with variable names. Don't use shell metacharacters, like any sort
-of punctuation.
+be creative with variable names. Don't use shell metacharacters.
 
 Pools
 =====
