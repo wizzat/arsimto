@@ -215,6 +215,7 @@ sub addAssets {
 			$actionTaken = "Modified existing";
 		} else {
 			system ("mkdir -p $assetDir/$asset");
+			system ("touch $assetDir/$asset/.keep");
 		}
 
 		# put in each data key:value pair
@@ -323,6 +324,7 @@ sub lnAssets {
 		foreach my $childAsset (@extraArgs) {
 			# every pool should also be an asset so it can have data
 			system ("mkdir -p $poolDir/$parentAsset/$childAsset && mkdir -p $assetDir/$childAsset");
+			system ("touch $poolDir/$parentAsset/$childAsset/.keep && touch $assetDir/$childAsset/.keep");
 			print " - Connected $parentAsset --> $childAsset\n";
 		}
 	} else {
