@@ -34,6 +34,12 @@ The Solution
 The Unix file system combined with a simple wrapper script should have the
 power to express the solution to this problem.
 
+The most damning limitation of this solution is the inability to use the
+special character `/` in any data value. The ipv6 address and ipv4 netmask
+are two data values that must be re-encoded. I use the other special
+character `\` to encode it, which means you cannot use `\` in your data
+values.
+
 Assets
 ======
 
@@ -41,16 +47,16 @@ There is a directory Assets/ that contains one directory per asset. Inside are
 files named `[variable]:[value]` for example:
 
  * cpus:8
- * diskMB-sda1:12582912
- * diskMB-sdb1:1098907648
  * dnsname:hodor.foo.tld
+ * eth0-ip:192.168.1.5
+ * eth1-ip:10.0.0.1
+ * eth0-mac:32:a2:f3:c7:20:f9
+ * eth1-mac:32:a2:f3:c7:2f:5f
  * intip:10.0.0.1
  * ip:192.168.1.5
- * ip-eth0:192.168.1.5
- * ip-eth1:10.0.0.1
- * mac-eth0:32:a2:f3:c7:20:f9
- * mac-eth1:32:a2:f3:c7:2f:5f
  * memkB:16777216
+ * sda1-diskMB:12582912
+ * sdb1-diskMB:1098907648
 
 As you can see, values can have colons. The variable name cannot. Everything up
 to the first colon is the variable name (which you can report on). Try not to
