@@ -354,8 +354,6 @@ sub addAssets {
 				}
 				if ($iFace =~ /inet6 addr:\s*([0-9a-f\:\/]+)\s+/s) {
 					$ifaceInet6Addr = $1;
-					# can't use slashes in variable names/values due to Unix
-					$ifaceInet6Addr =~ s/\//+/g;
 					if ($verbose) { print STDERR " - Inet6 is $ifaceInet6Addr\n"; }
 					addDataToAsset ($asset, "$ifaceName-inet6:$ifaceInet6Addr");
 				}
@@ -649,6 +647,10 @@ sub reportAssets {
 	# we now have all assets and their Data attributes - output the report
 	my $reportRows = 0;
 	foreach my $assetName (sort keys %{$reportHash}) {
+		# if they asked for everything, give them column headers
+		if ($reportRows == 0 && $dataList eq '*') {
+			print ("name\t" . join ("\t", keys %{$reportHash->{$assetName}}) . "\n");
+		}
 		# if it's an Asset/, print it as asset color and if long output with a
 		# preceding +. If it's a Pool/, print it pool color with a () preceding.
 		if (-e "$poolDir/$assetName" && $dataList =~ /\bname\b/) {
@@ -657,7 +659,7 @@ sub reportAssets {
 			print "$assetName";
 			if ($colourisedOutput) { print $regularColour; }
 			$outputCol++;
-		} elsif ($dataList =~ /\bname\b/) {
+		} elsif ($dataList eq '*' || $dataList =~ /\bname\b/) {
 			if ($colourisedOutput) { print $assetColour; }
 			if ($longMode) { print " + "; }
 			print "$assetName";
@@ -675,7 +677,7 @@ sub reportAssets {
 
 			if ($dataName eq '*') {
 				foreach my $key (keys %{$reportHash->{$assetName}}) {
-					print $reportHash->{$assetName}->{$key};
+					print $reportHash->{$assetName}->{$key} . "\t";
 				}
 			} elsif ($dataName =~ /^"(.+?)"$/) {
 				print "$1";
