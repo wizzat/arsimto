@@ -240,16 +240,40 @@ sub addAssets {
 
 		print " - $actionTaken Asset $asset\n";
 
-		# TODO: use facter or something real
-		# if they want us to collect some info automagically...
+		# TODO: use facter or something real - this will only work for Linux boxes
 		if ($collectServer) {
 			print " - Collecting information about $asset via SSH from $collectServer...\n";
-			if ($verbose) { print STDERR "   - Collecting intIP\n"; }
+			if ($verbose) { print STDERR "   - Collecting network\n"; }
 
-			my $ifConfig = `ssh $collectServer "ifconfig | egrep 'addr:10|addr:192.168'"`;
+			my $ifConfig = `ssh $collectServer "ifconfig"`;
 			my $intIP = 0;
-			if ($ifConfig =~ /addr:(.+?)\s+/) {
-				$intIP = $1;
+			my $ifaceName = 0;
+			my $ifaceHWaddr = 0;
+			my $ifaceInetAddr = 0;
+			my $ifaceInet6Addr = 0;
+			foreach my $iFace (split /\n\n/, $ifConfig) {
+				if ($iFace =~ /^(.+?)\s+/s) {
+					$ifaceName = $1;
+				}
+				if ($iFace =~ /HWaddr\s+([0-9a-f:]+)\s+/s) {
+					$ifaceHWaddr = $1;
+					system ("rm -f $assetDir/$asset/$ifaceName-hwaddr:* && touch $assetDir/$asset/$ifaceName-hwaddr:$ifaceHWaddr");
+				}
+				if ($iFace =~ /inet addr:\s*([0-9\.]+)\s+/s) {
+					$ifaceInetAddr = $1;
+					system ("rm -f $assetDir/$asset/$ifaceName-inet:* && touch $assetDir/$asset/$ifaceName-inet:$ifaceInetAddr");
+				}
+				if ($iFace =~ /inet6 addr:\s*([0-9a-f\:\/]+)\s+/s) {
+					$ifaceInet6Addr = $1;
+					# can't use slashes in variable names/values due to Unix
+					$ifaceInet6Addr =~ s/\//+/g;
+					if ($verbose) { print STDERR " - Inet6 is $ifaceInet6Addr\n"; }
+					system ("rm -f $assetDir/$asset/$ifaceName-inet6:* && touch $assetDir/$asset/$ifaceName-inet6:$ifaceInet6Addr");
+				}
+				if ($ifaceInetAddr =~ /^192\.168\./ || $ifaceInetAddr =~ /^10\./) {
+					$intIP = $ifaceInetAddr;
+					system ("rm -f $assetDir/$asset/intip:* && touch $assetDir/$asset/intip:$intIP");
+				}
 			}
 
 			if ($verbose) { print STDERR "   - Collecting extIP\n"; }
@@ -270,10 +294,9 @@ sub addAssets {
 			}
 
 			# if we collected a piece of data, put it into the asset
-			if ($extIP)    { system ("touch $assetDir/$asset/ip:$extIP"); }
-			if ($intIP)    { system ("touch $assetDir/$asset/intip:$intIP"); }
-			if ($cpuCount) { system ("touch $assetDir/$asset/cpus:$cpuCount"); }
-			if ($memory)   { system ("touch $assetDir/$asset/mem$memUnits:$memory"); }
+			if ($extIP)    { system ("rm -f $assetDir/$asset/ip:*    && touch $assetDir/$asset/ip:$extIP"); }
+			if ($cpuCount) { system ("rm -f $assetDir/$asset/cpus:*  && touch $assetDir/$asset/cpus:$cpuCount"); }
+			if ($memory)   { system ("rm -f $assetDir/$asset/mem$memUnits:*  && touch $assetDir/$asset/mem$memUnits:$memory"); }
 		}
 	}
 }
