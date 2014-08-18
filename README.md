@@ -237,7 +237,7 @@ goodness based on them:
 
  * cpus :: Number of CPUs the system has.
  * diskMB :: `MB` of all disks combined on the Asset
- * diskMB-[DEV] :: `MB` of disk space available on device `DEV`.
+ * [DEV]-diskMB :: `MB` of disk space available on device `DEV`.
  * dnsname :: The DNS name of the Asset. I use this as "desired DNS name" until
    it's actually in DNS, at which point it is "actual DNS name."
  * ip :: globally-addressable or public IP address. Any machine in your
@@ -246,9 +246,9 @@ goodness based on them:
  * intip :: private IP address. Only certain machines would be able to
    reach this Asset via this IP address. This is typically 10.0.0.0/8.
  * mac :: The MAC address of the zeroeth NIC.
- * mac-[IFACE] :: The MAC address of the NIC mapped to `IFACE`.
+ * [IFACE]-mac :: The MAC address of the NIC mapped to `IFACE`.
  * mbit :: Network bandwidth of all interfaces on Asset combined.
- * mbit-[IFACE] :: Network bandwidth capability of `IFACE` in MBit/sec.
+ * [IFACE]-mbit :: Network bandwidth capability of `IFACE` in MBit/sec.
  * memkB :: kilobytes of RAM this Asset has. The `kB` capitalized like that
    is a consequence of how Linux reports memory in /proc/meminfo. I personally
    would prefer `KB`.
