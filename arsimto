@@ -205,6 +205,103 @@ sub doArgs {
 	}
 }
 
+# touch a file - don't shell out, cuz it'll interpret shell metachars
+# which I really don't want - stolen from computer-programming-forum.com
+sub touchFile {
+	my $fileName = shift;
+
+	my $now = time;
+	local (*TMP);
+
+	utime ($now, $now, $fileName)
+	|| open (TMP, ">>$fileName")
+	|| warn ("Couldn't touch file: $!\n");
+}
+
+# return a list of entries in a dir - examples:
+#   fileList ("/a/directory", '.') - all entries
+#   fileList ("/a/directory", '^pre.+\.ext$') - all entries of form pre*.ext
+# dotfiles are NOT shown unless explicitly asked for:
+#   fileList ("dir/name", "^\..+")
+sub fileList {
+	my $dirName = shift;
+	my $matchExp = shift;
+
+	my $dirHandle;
+	my $fileList;
+
+	# if they gave us a file instead of dir, just return
+	unless (-d $dirName) {
+		if ($verbose) { print STDERR " W $dirName isn't a directory. Returning undef.\n"; }
+		return undef;
+	}
+
+	if (opendir my($dirHandle), $dirName) {
+		@{$fileList} = grep { /$matchExp/ } readdir ($dirHandle);
+
+		# if they didn't explicitly ask for dotfiles, don't return them
+		if ($matchExp eq '.' || $matchExp !~ /^\./) {
+			@{$fileList} = grep { !/^\./ } @{$fileList};
+		}
+
+		closedir ($dirHandle);
+
+		return $fileList;
+	} else {
+		if ($verbose) { print STDERR " E Could not open $dirName for reading!\n"; }
+		return undef;
+	}
+}
+
+# add a data key/val to an asset, if confused, return 250
+sub addDataToAsset {
+	my $assetName = shift;
+	my $dataKeyVal = shift;
+
+	if ($verbose) { print STDERR " - Adding $dataKeyVal for $assetName\n"; }
+
+	# replace any / with \
+	$dataKeyVal =~ s/\//\\/g;
+
+	if ($dataKeyVal =~ /^(.+?):(.+)$/) {
+		my $key = $1;
+		my $val = $2;
+
+		# remove the key if it already exists
+		my $existingKeys = `find $assetDir/$assetName/$key:* 2>/dev/null`;
+		if ($existingKeys) {
+			if ($verbose) { print STDERR " - Removing old keys $key for $assetName\n"; }
+			system ("rm -f $assetDir/$assetName/$key*");
+		}
+
+		touchFile ("$assetDir/$assetName/$dataKeyVal");
+	} else {
+		print STDERR " E Could not parse $dataKeyVal into key/value pair!\n";
+		return 250;
+	}
+}
+
+# collect the data key/value from the asset - if none, return undef
+sub getDataFromAssetDir {
+	my $assetDir = shift;
+	my $dataKey = shift;
+
+	# if they don't want a particular key, give them all
+	unless (defined $dataKey) {
+		$dataKey = '.+';
+	}
+
+	# get all matching data keys and deal with slash problem
+	my $dataList = fileList ("$assetDir", "^$dataKey:");
+
+	# normally you do this:
+	#   @newList = map {...} @oldList
+	# but since I'm doing s/a/b/ I am actually modifying @oldList!
+	map { s/\\/\//g } @{$dataList};
+
+	return $dataList;
+}
+
 # add assets to the database
 sub addAssets {
 	my $actionTaken = "Added new";
@@ -215,7 +312,7 @@ sub addAssets {
 			$actionTaken = "Modified existing";
 		} else {
 			system ("mkdir -p $assetDir/$asset");
-			system ("touch $assetDir/$asset/.keep");
+			touchFile ("$assetDir/$asset/.keep");
 		}
 
 		# put in each data key:value pair
@@ -225,17 +322,9 @@ sub addAssets {
 				$key = $1;
 				$val = $2;
 			}
-			if ($verbose) { print STDERR " - Adding $key for $asset\n"; }
-
-			# search for existing keys and replace them
-			my $existingKeys = `find $assetDir/$asset/$key* 2>/dev/null`;
-			if ($existingKeys) {
-				if ($verbose) { print STDERR " - Removing old keys $key for $asset\n"; }
-				system ("rm -f $assetDir/$asset/$key*");
-			}
 
 			# create the new key
-			system ("touch $assetDir/$asset/$data");
+			addDataToAsset ($asset, $data);
 		}
 
 		print " - $actionTaken Asset $asset\n";
@@ -257,22 +346,22 @@ sub addAssets {
 				}
 				if ($iFace =~ /HWaddr\s+([0-9a-f:]+)\s+/s) {
 					$ifaceHWaddr = $1;
-					system ("rm -f $assetDir/$asset/$ifaceName-hwaddr:* && touch $assetDir/$asset/$ifaceName-hwaddr:$ifaceHWaddr");
+					addDataToAsset ($asset, "$ifaceName-hwaddr:$ifaceHWaddr");
 				}
 				if ($iFace =~ /inet addr:\s*([0-9\.]+)\s+/s) {
 					$ifaceInetAddr = $1;
-					system ("rm -f $assetDir/$asset/$ifaceName-inet:* && touch $assetDir/$asset/$ifaceName-inet:$ifaceInetAddr");
+					addDataToAsset ($asset, "$ifaceName-inet:$ifaceInetAddr");
 				}
 				if ($iFace =~ /inet6 addr:\s*([0-9a-f\:\/]+)\s+/s) {
 					$ifaceInet6Addr = $1;
 					# can't use slashes in variable names/values due to Unix
 					$ifaceInet6Addr =~ s/\//+/g;
 					if ($verbose) { print STDERR " - Inet6 is $ifaceInet6Addr\n"; }
-					system ("rm -f $assetDir/$asset/$ifaceName-inet6:* && touch $assetDir/$asset/$ifaceName-inet6:$ifaceInet6Addr");
+					addDataToAsset ($asset, "$ifaceName-inet6:$ifaceInet6Addr");
 				}
 				if ($ifaceInetAddr =~ /^192\.168\./ || $ifaceInetAddr =~ /^10\./) {
 					$intIP = $ifaceInetAddr;
-					system ("rm -f $assetDir/$asset/intip:* && touch $assetDir/$asset/intip:$intIP");
+					addDataToAsset ($asset, "intip:$intIP");
 				}
 			}
 
@@ -294,9 +383,9 @@ sub addAssets {
 			}
 
 			# if we collected a piece of data, put it into the asset
-			if ($extIP)    { system ("rm -f $assetDir/$asset/ip:*    && touch $assetDir/$asset/ip:$extIP"); }
-			if ($cpuCount) { system ("rm -f $assetDir/$asset/cpus:*  && touch $assetDir/$asset/cpus:$cpuCount"); }
-			if ($memory)   { system ("rm -f $assetDir/$asset/mem$memUnits:*  && touch $assetDir/$asset/mem$memUnits:$memory"); }
+			if ($extIP)    { addDataToAsset ($asset, "ip:$extIP"); }
+			if ($cpuCount) { addDataToAsset ($asset, "cpus:$cpuCount"); }
+			if ($memory)   { addDataToAsset ($asset, "mem$memUnits:$memory"); }
 		}
 	}
 }
@@ -347,7 +436,8 @@ sub lnAssets {
 		foreach my $childAsset (@extraArgs) {
 			# every pool should also be an asset so it can have data
 			system ("mkdir -p $poolDir/$parentAsset/$childAsset && mkdir -p $assetDir/$childAsset");
-			system ("touch $poolDir/$parentAsset/$childAsset/.keep && touch $assetDir/$childAsset/.keep");
+			touchFile ("$poolDir/$parentAsset/$childAsset/.keep");
+			touchFile ("$assetDir/$childAsset/.keep");
 			print " - Connected $parentAsset --> $childAsset\n";
 		}
 	} else {
@@ -370,21 +460,21 @@ sub listAssets {
 	if ($extraArgs[0] =~ /^$poolDir\/*$/) {
 		# first collect all top-level pool names, some of which might
 		# be children of others
-		my @poolList = split(/\n/, `ls -1 $poolDir`);
+		my $poolList = fileList ($poolDir, '.');
 
 		# put the list of top-level pools into the report hash...
-		foreach my $currPool (@poolList) {
+		foreach my $currPool (@{$poolList}) {
 			$reportHash->{$currPool}->{'parent'} = $topLevel;
 		}
 
 		# second collect all assets inside the top-level pool names
 		# and if they match top-level pool, create two-way link between
 		# them in the hash
-		foreach my $currPool (@poolList) {
+		foreach my $currPool (@{$poolList}) {
 			my $assetCount = 0;
-			my @assetList = split(/\n/, `ls -1 $poolDir/$currPool`);
+			my $assetList = fileList ("$poolDir/$currPool", '.');
 
-			foreach my $oneAsset (@assetList) {
+			foreach my $oneAsset (@{$assetList}) {
 				if (defined $reportHash->{$oneAsset}) {
 					if ($verbose) { print STDERR "   - Setting $currPool --> $oneAsset link\n"; }
 					if ($longMode) {
@@ -426,51 +516,56 @@ sub collectAssetList {
 	my $runNum = 0;
 
 	foreach my $listDest (@extraArgs) {
-		if ($verbose) { print STDERR " - Traversing $listDest\n"; }
+		if ($listDest =~ /$assetDir\/(.+)$/) {
+			if ($verbose) { print STDERR " - Got asset $1 - merely adding it to hash.\n"; }
+			$assetHash->{$1} = 1;
+		} else {
+			if ($verbose) { print STDERR " - Traversing $listDest\n"; }
 
-		my @assetsFound;
-		if (-e $listDest) {
-			# if they pass an actual dir that exists
-			@assetsFound = split(/\n/, `ls -1 $listDest`);
-		} elsif (-e "$poolDir/$listDest") {
-			# maybe they passed a pool name sans dir prefix?
-			@assetsFound = split(/\n/, `ls -1 $poolDir/$listDest`);
-		} elsif (-e "$assetDir/$listDest") {
-			# oh maybe they passed an asset name sans dir prefix? hope!
-			@assetsFound = split(/\n/, `ls -1 $assetDir/$listDest`);
-		}
+			my @assetsFound;
+			if (-d $listDest) {
+				# if they pass an actual dir that exists
+				@assetsFound = @{fileList ("$listDest", '.')};
+			} elsif (-d "$poolDir/$listDest") {
+				# pool name sans dir prefix
+				@assetsFound = @{fileList ("$poolDir/$listDest", '.')};
+			} elsif (-d "$assetDir/$listDest") {
+				# they passed an asset name sans dir prefix
+				$assetHash->{$listDest} = 1;
+			}
 
-		# here we decide if we're doing the intersection of the various pools
-		if ($vennMode eq 'intersection') {
-			my @interSection;
+			# here we decide if we're doing the intersection of the various pools
+			if ($vennMode eq 'intersection') {
+				my @interSection;
 
-			# initial run, fill asset list, otherwise, do intersection
-			foreach my $foundAsset (@assetsFound) {
-				if ($runNum > 0) {
-					# time to do intersection!
-					if (defined $assetHash->{$foundAsset}) {
+				# initial run, fill asset list, otherwise, do intersection
+				foreach my $foundAsset (@assetsFound) {
+					if ($runNum > 0) {
+						# time to do intersection!
+						if (defined $assetHash->{$foundAsset}) {
+							push (@interSection, $foundAsset);
+						}
+					} else {
+						# fill initial asset list
 						push (@interSection, $foundAsset);
 					}
-				} else {
-					# fill initial asset list
-					push (@interSection, $foundAsset);
+				}
+
+				if ($verbose) { print STDERR " - Adding " . scalar @interSection . " items in this round.\n"; }
+				$assetHash = undef;
+				foreach my $foundAsset (@interSection) {
+					$assetHash->{$foundAsset} = 1;
+				}
+			} else {
+				# do they want all assets or just an intersection from the pools?
+				foreach my $foundAsset (@assetsFound) {
+					if ($verbose) { print STDERR " - Adding $foundAsset from $listDest\n"; }
+					$assetHash->{$foundAsset} = 1;
 				}
 			}
 
-			if ($verbose) { print STDERR " - Adding " . scalar @interSection . " items in this round.\n"; }
-			$assetHash = undef;
-			foreach my $foundAsset (@interSection) {
-				$assetHash->{$foundAsset} = 1;
-			}
-		} else {
-			# do they want all assets or just an intersection from the pools?
-			foreach my $foundAsset (@assetsFound) {
-				if ($verbose) { print STDERR " - Adding $foundAsset from $listDest\n"; }
-				$assetHash->{$foundAsset} = 1;
-			}
+			$runNum++;
 		}
-
-		$runNum++;
 	}
 
 	@{$assetList} = sort keys %{$assetHash};
@@ -518,13 +613,14 @@ sub reportAssets {
 	# this is a list of actual Assets, which might also be Pools - so collect
 	# Data attributes for each asset first
 	foreach my $foundAsset (@{$assetList}) {
-		$objectList = `find $assetDir/$foundAsset -type f -name '*:*' 2>/dev/null`;
+		if ($verbose) { print STDERR " - Collecting data from $assetDir/$foundAsset\n"; }
+		$objectList = getDataFromAssetDir ("$assetDir/$foundAsset");
 
-		if ($objectList) {
-			if ($verbose) { print STDERR " - Found attributes for $foundAsset - adding them...\n"; }
+		if (@{$objectList}) {
 			# next, grab out the data we want and put into a hash of assets
-			foreach my $oneLine (split(/\n/, $objectList)) {
-				if ($oneLine =~ /$foundAsset\/(.+?):(.+)$/) {
+			foreach my $oneLine (@{$objectList}) {
+				if ($verbose) { print STDERR " - Adding $oneLine.\n"; }
+				if ($oneLine =~ /^(.+?):(.+)$/) {
 					my $dataName = $1;
 					my $dataVal = $2;
 
@@ -540,7 +636,7 @@ sub reportAssets {
 				}
 			}
 		} else {
-			if ($verbose) { print STDERR " - No attributes for $foundAsset - adding with none.\n"; }
+			if ($verbose) { print STDERR " - No data for $foundAsset - adding with none.\n"; }
 			# the asset was in the Pool, but had no attributes, but we still want to
 			# see the object in the list
 			$reportHash->{$foundAsset}->{nil} = 1;
@@ -574,7 +670,6 @@ sub reportAssets {
 			next if ($dataName eq 'name');
 
 			# random stuff to print depending on situation
-			if ($verbose) { print STDERR " - Outputting $dataName\n"; }
 			if ($colourisedOutput) { print $dataColour; }
 			if ($outputCol) { print "\t"; }
 
