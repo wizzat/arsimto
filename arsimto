@@ -19,7 +19,7 @@ my $mode = 0;
 my $verbose = 0;
 my $assetList = '';
 my $dataList = '';
-my $collectServer = 0;
+my $collectURI = 0;
 my $longMode = 0;
 
 # colour-based variables
@@ -70,7 +70,7 @@ if (open (IFILE, "< $rcFile")) {
 foreach my $arg (@ARGV) {
 	if ($arg =~ /^-+h(elp)*$/)                  { doArgs('long'); exit 0; }
 	elsif ($arg =~ /^-+a(ssets)*=(.+)$/)        { $assetList = $2; }
-	elsif ($arg =~ /^-+c(ollect)*=(.+)$/)       { $collectServer = $2; }
+	elsif ($arg =~ /^-+c(ollect)*=(.+)$/)       { $collectURI = $2; }
 	elsif ($arg =~ /^-+c(olor)*$/)              { $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+p(alette)*=(.+)$/)       { $colourPalette = $2; $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
@@ -330,11 +330,21 @@ sub addAssets {
 		print " - $actionTaken Asset $asset\n";
 
 		# TODO: use facter or something real - this will only work for Linux boxes
-		if ($collectServer) {
-			print " - Collecting information about $asset via SSH from $collectServer...\n";
+		if ($collectURI) {
+			print " - Collecting information about $asset via SSH from $collectURI...\n";
 			if ($verbose) { print STDERR "   - Collecting network\n"; }
 
-			my $ifConfig = `ssh $collectServer "ifconfig"`;
+			my $collectHost;
+			my $collectUser;
+			if ($collectURI =~ /^(.+?)@(.+)$/) {
+				$collectUser = $1;
+				$collectHost = $2;
+			} else {
+				$collectUser = '';
+				$collectHost = $collectURI;
+			}
+
+			my $ifConfig = `ssh $collectURI "/sbin/ifconfig"`;
 			my $intIP = 0;
 			my $ifaceName = 0;
 			my $ifaceHWaddr = 0;
@@ -357,24 +367,24 @@ sub addAssets {
 					if ($verbose) { print STDERR " - Inet6 is $ifaceInet6Addr\n"; }
 					addDataToAsset ($asset, "$ifaceName-inet6:$ifaceInet6Addr");
 				}
-				if ($ifaceInetAddr =~ /^192\.168\./ || $ifaceInetAddr =~ /^10\./) {
+				if ($ifaceInetAddr =~ /^192\.168\./ || $ifaceInetAddr =~ /^10\./ || $ifaceInetAddr =~ /172\.1[6-9]\./ || $ifaceInetAddr =~ /172\.2[0-9]\./ || $ifaceInetAddr =~ /172\.3[0-1]\./) {
 					$intIP = $ifaceInetAddr;
 					addDataToAsset ($asset, "intip:$intIP");
 				}
 			}
 
 			if ($verbose) { print STDERR "   - Collecting extIP\n"; }
-			my $extIP=`ping -c 1 $collectServer | grep 'bytes of data' | awk -F '(' '{print \$2}' | awk -F ')' '{print \$1}'`;
+			my $extIP=`ping -c 1 $collectHost | grep 'bytes of data' | awk -F '(' '{print \$2}' | awk -F ')' '{print \$1}'`;
 			chomp ($extIP);
 
 			if ($verbose) { print STDERR "   - Collecting CPUcount\n"; }
-			my $cpuCount = `ssh $collectServer "cat /proc/cpuinfo | grep ^processor | wc -l"`;
+			my $cpuCount = `ssh $collectURI "cat /proc/cpuinfo | grep ^processor | wc -l"`;
 			chomp ($cpuCount);
 
 			if ($verbose) { print STDERR "   - Collecting Memory\n"; }
 			my $memory = 0;
 			my $memUnits = "?";
-			my $memInfo = `ssh $collectServer "cat /proc/meminfo | grep ^MemTotal"`;
+			my $memInfo = `ssh $collectURI "cat /proc/meminfo | grep ^MemTotal"`;
 			if ($memInfo =~ /(\d+)\s+(\w+)$/) {
 				$memory = $1;
 				$memUnits = $2;
