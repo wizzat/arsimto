@@ -76,7 +76,7 @@ foreach my $arg (@ARGV) {
 	elsif ($arg =~ /^-+p(alette)*=(.+)$/)       { $colourPalette = $2; $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
 	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; }
-	elsif ($arg =~ /^-+j(son)*/)                { $outputMode = 'json'; }
+	elsif ($arg =~ /^-+j(son)*/)                { $outputMode = 'json'; $colourisedOutput = 0; }
 	elsif ($arg =~ /^-+l(ong)*/)                { $longMode = 1; }
 	elsif ($arg =~ /^-+p(rist)*/)               { $pristineMode = 'pristine'; }
 	elsif ($arg =~ /^-+u(s)*$/)                 { doArgs('uses'); exit 0; }
@@ -312,8 +312,8 @@ sub addDataToAsset {
 }
 
 # collect the data key/value from the asset - if none, return undef
-sub getDataFromAssetDir {
-	my $assetDir = shift;
+sub getDataFromAsset {
+	my $asset = shift;
 	my $dataKey = shift;
 
 	# if they don't want a particular key, give them all
@@ -322,7 +322,7 @@ sub getDataFromAssetDir {
 	}
 
 	# get all matching data keys and deal with slash problem
-	my $dataList = fileList ("$assetDir", "^$dataKey:");
+	my $dataList = fileList ("$assetDir/$asset", "^$dataKey:");
 
 	# normally you do this:
 	#   @newList = map {...} @oldList
@@ -647,7 +647,6 @@ sub outputHashTree {
 sub reportAssets {
 	my $objectList = '';
 	my $reportHash;
-	my $outputCol = 0;
 
 	$assetList = collectAssetList();
 
@@ -655,7 +654,7 @@ sub reportAssets {
 	# Data attributes for each asset first
 	foreach my $foundAsset (@{$assetList}) {
 		if ($verbose) { print STDERR " - Collecting data from $assetDir/$foundAsset\n"; }
-		$objectList = getDataFromAssetDir ("$assetDir/$foundAsset");
+		$objectList = getDataFromAsset ("$foundAsset");
 
 		if (@{$objectList}) {
 			# next, grab out the data we want and put into a hash of assets
@@ -687,83 +686,112 @@ sub reportAssets {
 	# if they specify nothing, show them Asset names
 	unless ($dataList) { $dataList = 'name'; }
 
-	# we now have all assets and their Data attributes - output the report
+	outputAssetsReport ($reportHash);
+}
+
+# output a simple list of Assets and their data attributes
+sub outputAssetsReport {
+	my $reportHash = shift;
+	my $outputCol = 0;
+
+	# each Asset and their Data attributes...
 	my $reportRows = 0;
 	foreach my $assetName (sort keys %{$reportHash}) {
-		# output all column headers - FIXME: doesn't work - need to get a union of
-		# all column headers from all assets returned - they may not be the same from
-		# row to row! - the fix, build a %reportHeaders and output that here
-		if ($reportRows == 0 && $dataList eq '*') {
-			print ("name\t" . join ("\t", keys %{$reportHash->{$assetName}}) . "\n");
-		}
+		my $outLine = '';
 
 		# if it's an Asset/, print it as asset color and if long output with a
 		# preceding +. If it's a Pool/, print it pool color with a () preceding.
 		if (-d "$poolDir/$assetName" && $dataList =~ /\bname\b/) {
-			if ($colourisedOutput) { print $poolColour; }
-			if ($longMode) { print "() "; }
-			if ($colourisedOutput) { print $regularColour; }
+			if ($colourisedOutput) { $outLine .= $poolColour; }
+			if ($longMode) { $outLine .= "() "; }
+			if ($colourisedOutput) { $outLine .= $regularColour; }
 		} elsif ($dataList eq '*' || $dataList =~ /\bname\b/) {
-			if ($colourisedOutput) { print $assetColour; }
-			if ($longMode) { print " + "; }
-			if ($colourisedOutput) { print $regularColour; }
+			if ($colourisedOutput) { $outLine .= $assetColour; }
+			if ($longMode) { $outLine .= " + "; }
+			if ($colourisedOutput) { $outLine .= $regularColour; }
 		}
 
-		# output the data they requested
+		# each Data attribute they requested...
 		foreach my $dataName (split(/,/, $dataList)) {
 			# separate columns after 1st with tabs
 			if ($outputMode eq 'ascii') {
-				if ($outputCol) { print "\t"; }
+				if ($outputCol) { $outLine .= "\t"; }
 			} elsif ($outputMode eq 'json') {
-				unless ($outputCol) { print "{ "; }
+				unless ($outputCol) { $outLine .= "{ "; }
 			}
 
 			# the column 'name' is special
 			if ($dataName eq 'name') {
 				if (-d "$poolDir/$assetName" && $colourisedOutput) {
-					print $poolColour;
+					$outLine .= $poolColour;
 				} elsif ($colourisedOutput) {
-					print $assetColour;
+					$outLine .= $assetColour;
 				}
 				if ($outputMode eq 'ascii') {
-					print "$assetName";
+					$outLine .= "$assetName";
 				} elsif ($outputMode eq 'json') {
-					print "\"name\":\"$assetName\", ";
+					$outLine .= "\"name\":\"$assetName\", ";
 				}
 				$outputCol++;
 			} else {
-				if ($colourisedOutput) { print $dataColour; }
+				if ($colourisedOutput) { $outLine .= $dataColour; }
 
 				if ($dataName eq '*') {
+					if ($outputMode eq 'ascii') {
+						$outLine .= "name:$assetName\t";
+					} elsif ($outputMode eq 'json') {
+						$outLine .= "\"name\":\"$assetName\", ";
+					}
 					foreach my $key (keys %{$reportHash->{$assetName}}) {
-						print $reportHash->{$assetName}->{$key} . "\t";
+						if ($outputMode eq 'ascii') {
+							if ($colourisedOutput) { $outLine .= $regularColour; }
+							$outLine .= "$key:";
+							if ($colourisedOutput) { $outLine .= $dataColour; }
+							$outLine .= $reportHash->{$assetName}->{$key} . "\t";
+							if ($colourisedOutput) { $outLine .= $regularColour; }
+						} elsif ($outputMode eq 'json') {
+							$outLine .= "\"$key\":\"$reportHash->{$assetName}->{$key}\", ";
+						}
 					}
 				} elsif ($dataName =~ /^"(.+?)"$/) {
-					print "$1";
+					if ($outputMode eq 'ascii') {
+						$outLine .= $1;
+					} elsif ($outputMode eq 'json') {
+						$outLine .= "\"$1\":\"$1\", ";
+					}
 				} elsif (defined $reportHash->{$assetName}->{$dataName}) {
 					if ($outputMode eq 'ascii') {
-						print $reportHash->{$assetName}->{$dataName};
+						$outLine .= $reportHash->{$assetName}->{$dataName};
 					} elsif ($outputMode eq 'json') {
-						print "\"$dataName\":\"$reportHash->{$assetName}->{$dataName}\", ";
+						$outLine .= "\"$dataName\":\"$reportHash->{$assetName}->{$dataName}\", ";
 					}
 				} else {
-					print "__UNDEF__";
+					$outLine .= "__UNDEF__";
 				}
 				$outputCol++;
 			}
 
-			# put terminal back into normal mode
-			if ($colourisedOutput) { print $regularColour; }
 		}
+
+		# fix up any retardation if JSON output
+		if ($outputMode eq 'json') {
+			$outLine =~ s/, $/ /;
+		}
+
+		# put terminal back into normal mode
+		if ($colourisedOutput) { $outLine .= $regularColour; }
 
 		# newline! :)
 		if ($outputMode eq 'ascii') {
-			print "\n";
+			$outLine .= "\n";
 		} elsif ($outputMode eq 'json') {
-			print "}, \n";
+			$outLine .= "}, \n";
 		}
 		$reportRows++;
 		$outputCol = 0;
+
+		# finally, output the line
+		print $outLine;
 	}
 	# if they're in a terminal, tell them how many matching assets. if they're piping
 	# then skip that. it'll just confuse things.
