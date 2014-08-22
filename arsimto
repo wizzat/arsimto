@@ -21,6 +21,7 @@ my $assetList = '';
 my $dataList = '';
 my $collectURI = 0;
 my $longMode = 0;
+my $outputMode = 'ascii';
 
 # colour-based variables
 my $colourisedOutput = 0;
@@ -75,6 +76,7 @@ foreach my $arg (@ARGV) {
 	elsif ($arg =~ /^-+p(alette)*=(.+)$/)       { $colourPalette = $2; $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
 	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; }
+	elsif ($arg =~ /^-+j(son)*/)                { $outputMode = 'json'; }
 	elsif ($arg =~ /^-+l(ong)*/)                { $longMode = 1; }
 	elsif ($arg =~ /^-+p(rist)*/)               { $pristineMode = 'pristine'; }
 	elsif ($arg =~ /^-+u(s)*$/)                 { doArgs('uses'); exit 0; }
@@ -341,7 +343,6 @@ sub addAssets {
 		} else {
 			system ("mkdir -p $assetDir/$asset");
 			touchFile ("$assetDir/$asset/.dataList");
-			updateKeepFile ($asset);
 		}
 
 		# put in each data key:value pair
@@ -424,6 +425,9 @@ sub addAssets {
 			if ($cpuCount) { addDataToAsset ($asset, "cpus:$cpuCount"); }
 			if ($memory)   { addDataToAsset ($asset, "mem$memUnits:$memory"); }
 		}
+
+		# update the git helper file
+		updateKeepFile ($asset);
 	}
 }
 
@@ -688,7 +692,7 @@ sub reportAssets {
 	foreach my $assetName (sort keys %{$reportHash}) {
 		# output all column headers - FIXME: doesn't work - need to get a union of
 		# all column headers from all assets returned - they may not be the same from
-		# row to row!
+		# row to row! - the fix, build a %reportHeaders and output that here
 		if ($reportRows == 0 && $dataList eq '*') {
 			print ("name\t" . join ("\t", keys %{$reportHash->{$assetName}}) . "\n");
 		}
@@ -708,7 +712,11 @@ sub reportAssets {
 		# output the data they requested
 		foreach my $dataName (split(/,/, $dataList)) {
 			# separate columns after 1st with tabs
-			if ($outputCol) { print "\t"; }
+			if ($outputMode eq 'ascii') {
+				if ($outputCol) { print "\t"; }
+			} elsif ($outputMode eq 'json') {
+				unless ($outputCol) { print "{ "; }
+			}
 
 			# the column 'name' is special
 			if ($dataName eq 'name') {
@@ -717,7 +725,11 @@ sub reportAssets {
 				} elsif ($colourisedOutput) {
 					print $assetColour;
 				}
-				print "$assetName";
+				if ($outputMode eq 'ascii') {
+					print "$assetName";
+				} elsif ($outputMode eq 'json') {
+					print "\"name\":\"$assetName\", ";
+				}
 				$outputCol++;
 			} else {
 				if ($colourisedOutput) { print $dataColour; }
@@ -729,7 +741,11 @@ sub reportAssets {
 				} elsif ($dataName =~ /^"(.+?)"$/) {
 					print "$1";
 				} elsif (defined $reportHash->{$assetName}->{$dataName}) {
-					print $reportHash->{$assetName}->{$dataName};
+					if ($outputMode eq 'ascii') {
+						print $reportHash->{$assetName}->{$dataName};
+					} elsif ($outputMode eq 'json') {
+						print "\"$dataName\":\"$reportHash->{$assetName}->{$dataName}\", ";
+					}
 				} else {
 					print "__UNDEF__";
 				}
@@ -741,7 +757,11 @@ sub reportAssets {
 		}
 
 		# newline! :)
-		print "\n";
+		if ($outputMode eq 'ascii') {
+			print "\n";
+		} elsif ($outputMode eq 'json') {
+			print "}, \n";
+		}
 		$reportRows++;
 		$outputCol = 0;
 	}
