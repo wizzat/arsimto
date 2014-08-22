@@ -147,9 +147,9 @@ sub doArgs {
 		print "\n";
 	} else {
 		print "usage: $0 <command> [<assetObj>|<poolObj>] [<assetObj>|<poolObj>...]\n";
-		print "  [-v|--verboase] [-h|--help] [-d=...|--data=<dataList>] [-p|--pristine]\n";
-		print "  [-c|--color] [-l|--long] [-p=...|--palette=<p1,p2,p3,p4,p5>]\n";
-		print "  [-r=...|--rcfile=<rcFile>]\n";
+		print "  [-v|--verboase] [-h|--help] [-d=|--data=<dataList>] [-p|--pristine]\n";
+		print "  [-c|--color] [-l|--long] [-p=|--palette=<p1,p2,p3,p4,p5>]\n";
+		print "  [-r=|--rcfile=<rcFile>]\n";
 		print "\n";
 		print "  -h        Long version help. Run without arguments for short help.\n";
 		print "  -l        Or --long. Long output for Pools/ listing.\n";
@@ -200,9 +200,9 @@ sub doArgs {
 			print "  $0 ls Pools/db\n";
 			print "  $0 ls Pools/db/server02\n";
 			print "  $0 ls Pools/db  Pools/www  Pools/dc01\n";
-			print "  $0 ls production db --intersection\n";
-			print "  $0 ls --data=ram,ip Pools/db\n";
-			print "  $0 ls --data=ip,nic Pools/www\n";
+			print "  $0 ls --intersection production db\n";
+			print "  $0 ls --data=name,ram,ip Pools/db\n";
+			print "  $0 ls --data=name,ip,nic Pools/www\n";
 		}
 		print "\n";
 		print "mv ::\n";
@@ -235,6 +235,14 @@ sub touchFile {
 	utime ($now, $now, $fileName)
 	|| open (TMP, ">>$fileName")
 	|| warn ("Couldn't touch file: $!\n");
+}
+
+# put an alphabetical list of data attributes into .dataList
+# to help Git with conflicts and conflict resolution
+sub updateKeepFile {
+	my $assetName = shift;
+
+	system ("ls -1 $assetDir/$assetName > $assetDir/$assetName/.dataList");
 }
 
 # return a list of entries in a dir - examples:
@@ -294,6 +302,7 @@ sub addDataToAsset {
 		}
 
 		touchFile ("$assetDir/$assetName/$dataKeyVal");
+		updateKeepFile ($assetName);
 	} else {
 		print STDERR " E Could not parse $dataKeyVal into key/value pair!\n";
 		return 250;
@@ -331,7 +340,8 @@ sub addAssets {
 			$actionTaken = "Modified existing";
 		} else {
 			system ("mkdir -p $assetDir/$asset");
-			touchFile ("$assetDir/$asset/.keep");
+			touchFile ("$assetDir/$asset/.dataList");
+			updateKeepFile ($asset);
 		}
 
 		# put in each data key:value pair
@@ -463,8 +473,8 @@ sub lnAssets {
 		foreach my $childAsset (@extraArgs) {
 			# every pool should also be an asset so it can have data
 			system ("mkdir -p $poolDir/$parentAsset/$childAsset && mkdir -p $assetDir/$childAsset");
-			touchFile ("$poolDir/$parentAsset/$childAsset/.keep");
-			touchFile ("$assetDir/$childAsset/.keep");
+			touchFile ("$poolDir/$parentAsset/$childAsset/.dataList");
+			touchFile ("$assetDir/$childAsset/.dataList");
 			print " - Connected $parentAsset --> $childAsset\n";
 		}
 	} else {
