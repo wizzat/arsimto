@@ -512,28 +512,26 @@ sub listAssets {
 		# and if they match top-level pool, create two-way link between
 		# them in the hash
 		foreach my $currPool (@{$poolList}) {
-			my $assetCount = 0;
 			my $assetList = fileList ("$poolDir/$currPool", '.');
 
 			foreach my $oneAsset (@{$assetList}) {
+				# if the oneAsset is already in the reportHash, it's because it's
+				# also a pool, so add it to the childrenPools portion. otherwise
+				# it's an asset, so add it to the childrenAssets portion.
 				if (defined $reportHash->{$oneAsset}) {
 					if ($verbose) { print STDERR "   - Setting $currPool --> $oneAsset link\n"; }
+
 					if ($longMode) {
-						$reportHash->{$currPool}->{'children'} .= "($oneAsset) ";
+						$reportHash->{$currPool}->{'childrenPools'} .= "($oneAsset) ";
 					} else {
-						$reportHash->{$currPool}->{'children'} .= "()";
+						$reportHash->{$currPool}->{'childrenPools'} .= "()";
 					}
 				} else {
-					$assetCount++;
-				}
-			}
-			if ($assetCount) {
-				if ($colourisedOutput) {
-					$reportHash->{$currPool}->{'children'} .= $assetColour;
-				}
-				$reportHash->{$currPool}->{'children'} .= "+" x $assetCount;
-				if ($colourisedOutput) {
-					$reportHash->{$currPool}->{'children'} .= $regularColour;
+					if ($longMode) {
+						$reportHash->{$currPool}->{'childrenAssets'} .= "$oneAsset ";
+					} else {
+						$reportHash->{$currPool}->{'childrenAssets'} .= "+";
+					}
 				}
 			}
 		}
@@ -622,15 +620,28 @@ sub outputHashTree {
 
 	foreach my $parentKey (sort keys %{$hashToTraverse}) {
 		if ($hashToTraverse->{$parentKey}->{'parent'} eq $rootLevel) {
-			print "($parentKey)";
 			$reportRows++;
-			if (defined $hashToTraverse->{$parentKey}->{'children'}) {
-				$hashToTraverse->{$parentKey}->{'children'} =~ s/,$//;
+
+			# print the parent and --> if any children
+			print "($parentKey)";
+			if (defined $hashToTraverse->{$parentKey}->{'childrenPools'}
+			    || defined $hashToTraverse->{$parentKey}->{'childrenAssets'}) {
 				print " --> ";
-				if ($colourisedOutput) { print $poolColour; }
-				print $hashToTraverse->{$parentKey}->{'children'};
-				if ($colourisedOutput) { print $regularColour; }
 			}
+
+			# print Pools first, then Assets
+			if (defined $hashToTraverse->{$parentKey}->{'childrenPools'}) {
+				$hashToTraverse->{$parentKey}->{'childrenPools'} =~ s/,$//;
+				if ($colourisedOutput) { print $poolColour; }
+				print $hashToTraverse->{$parentKey}->{'childrenPools'};
+			}
+			if (defined $hashToTraverse->{$parentKey}->{'childrenAssets'}) {
+				$hashToTraverse->{$parentKey}->{'childrenAssets'} =~ s/,$//;
+				print " ";
+				if ($colourisedOutput) { print $assetColour; }
+				print $hashToTraverse->{$parentKey}->{'childrenAssets'};
+			}
+			if ($colourisedOutput) { print $regularColour; }
 			print "\n";
 		}
 	}
