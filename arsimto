@@ -522,7 +522,11 @@ sub listAssets {
 					if ($verbose) { print STDERR "   - Setting $currPool --> $oneAsset link\n"; }
 
 					if ($longMode) {
-						$reportHash->{$currPool}->{'childrenPools'} .= "($oneAsset) ";
+						if ($outputMode eq 'json') {
+							$reportHash->{$currPool}->{'childrenPools'} .= "$oneAsset ";
+						} else {
+							$reportHash->{$currPool}->{'childrenPools'} .= "($oneAsset) ";
+						}
 					} else {
 						$reportHash->{$currPool}->{'childrenPools'} .= "()";
 					}
@@ -614,37 +618,66 @@ sub collectAssetList {
 # traverse a tree struct implemented inside a hash
 sub outputHashTree {
 	my $hashToTraverse = shift;
-	my $rootLevel = shift;
 	my $indent = shift;
 	my $reportRows = 0;
 
-	foreach my $parentKey (sort keys %{$hashToTraverse}) {
-		if ($hashToTraverse->{$parentKey}->{'parent'} eq $rootLevel) {
-			$reportRows++;
+	if ($outputMode eq 'json') {
+		print "{\n";
+	}
 
-			# print the parent and --> if any children
+	foreach my $parentKey (sort keys %{$hashToTraverse}) {
+		$reportRows++;
+
+		# print the parent
+		if ($outputMode eq 'ascii') {
 			print "($parentKey)";
-			if (defined $hashToTraverse->{$parentKey}->{'childrenPools'}
-			    || defined $hashToTraverse->{$parentKey}->{'childrenAssets'}) {
+		} elsif ($outputMode eq 'json') {
+			print "  \"$parentKey\"";
+		}
+
+		# if we have some Pools/Assets then we indicate such
+		if (defined $hashToTraverse->{$parentKey}->{'childrenPools'}
+		 || defined $hashToTraverse->{$parentKey}->{'childrenAssets'}) {
+			if ($outputMode eq 'ascii') {
 				print " --> ";
+			} elsif ($outputMode eq 'json') {
+				print ":[\n";
 			}
 
-			# print Pools first, then Assets
+			# build an output string
+			my $outputString = '';
 			if (defined $hashToTraverse->{$parentKey}->{'childrenPools'}) {
-				$hashToTraverse->{$parentKey}->{'childrenPools'} =~ s/,$//;
-				if ($colourisedOutput) { print $poolColour; }
-				print $hashToTraverse->{$parentKey}->{'childrenPools'};
+				$hashToTraverse->{$parentKey}->{'childrenPools'} =~ s/ $//;
+				if ($colourisedOutput) { $outputString .= $poolColour; }
+				$outputString .= $hashToTraverse->{$parentKey}->{'childrenPools'};
 			}
 			if (defined $hashToTraverse->{$parentKey}->{'childrenAssets'}) {
-				$hashToTraverse->{$parentKey}->{'childrenAssets'} =~ s/,$//;
-				print " ";
-				if ($colourisedOutput) { print $assetColour; }
-				print $hashToTraverse->{$parentKey}->{'childrenAssets'};
+				$hashToTraverse->{$parentKey}->{'childrenAssets'} =~ s/ $//;
+				$outputString .= " ";
+				if ($colourisedOutput) { $outputString .= $assetColour; }
+				$outputString .= $hashToTraverse->{$parentKey}->{'childrenAssets'};
 			}
-			if ($colourisedOutput) { print $regularColour; }
+
+			if ($outputString) {
+				if ($outputMode eq 'json') {
+					print "     { \"name\":\"";
+					$outputString =~ s/^ //;
+					$outputString =~ s/ /" }\n   , { "name":"/g;
+				}
+				print $outputString;
+				if ($outputMode eq 'json') { print "\" }\n  ]"; }
+			}
+
 			print "\n";
+
+			if ($colourisedOutput) { print $regularColour; }
 		}
 	}
+
+	if ($outputMode eq 'json') {
+		print "}\n";
+	}
+
 	# if they're in a terminal, tell them how many matching Pools. if they're piping
 	# then skip that. it'll just confuse things.
 	if (-t STDOUT) {
