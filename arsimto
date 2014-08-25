@@ -503,6 +503,10 @@ sub listAssets {
 		# be children of others
 		my $poolList = fileList ($poolDir, '.');
 
+		if ($outputMode eq 'json') {
+			$longMode = 1;
+		}
+
 		# put the list of top-level pools into the report hash...
 		foreach my $currPool (@{$poolList}) {
 			$reportHash->{$currPool}->{'parent'} = $topLevel;
