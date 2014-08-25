@@ -136,7 +136,7 @@ sub doArgs {
 		print "Real-World Uses of Arsimto\n";
 		print "\n";
 		print "Add a host to the pool with collection of info and DNS-NAME:\n";
-		print q#  arsimto add ASSET.NAME --collect=ASSETIP -d=dnsname:ASSET.NAME.TLD# . "\n";
+		print q#  arsimto add ASSET.NAME --collect=[username@]ASSETIP -d=dnsname:ASSET.NAME.TLD# . "\n";
 		print "\n";
 		print "Copy a set of files to all servers in an intersection of pools:\n";
 		print q#  arsimto ls -i POOL1 POOL2 -d=name,ip | awk '{print "echo "$1" ; scp -r ~/file1 ~/dir1 "$2":"}' | sh# . "\n";
@@ -164,9 +164,9 @@ sub doArgs {
 		print "\n";
 		print "add :: \n";
 		print "  $0 add <assetName> [<assetName>...]\n";
-		print "    --data=n1:v1[,n2:v2,...,nN:vN] [--collect=<hostName>]\n";
+		print "    --data=n1:v1[,n2:v2,...,nN:vN] [--collect=[username@]<hostName>]\n";
 		print "  Add asset into inventory. Data attributes are added to all assets listed.\n";
-		print "  --collect=<hostName> SSHes to hostName to get basic data from the host.\n";
+		print "  --collect=[username@]<hostName> SSHes to hostName to get basic data from the host.\n";
 		if ($helpLength eq 'long') {
 			print "Examples:\n";
 			print "  $0 add dc01   --data=capacity:5000\n";
