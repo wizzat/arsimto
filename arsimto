@@ -694,6 +694,12 @@ sub outputAssetsReport {
 	my $reportHash = shift;
 	my $outputCol = 0;
 
+
+	# for JSON mode, output an array
+	if ($outputMode eq 'json') {
+		print "{\n  \"arsimtoAssets\":[\n";
+	}
+
 	# each Asset and their Data attributes...
 	my $reportRows = 0;
 	foreach my $assetName (sort keys %{$reportHash}) {
@@ -717,7 +723,14 @@ sub outputAssetsReport {
 			if ($outputMode eq 'ascii') {
 				if ($outputCol) { $outLine .= "\t"; }
 			} elsif ($outputMode eq 'json') {
-				unless ($outputCol) { $outLine .= "{ "; }
+				unless ($outputCol) {
+					if ($reportRows) {
+						$outLine .= "  , ";
+					} else {
+						$outLine .= "    ";
+					}
+					$outLine .= "{ ";
+				}
 			}
 
 			# the column 'name' is special
@@ -766,7 +779,11 @@ sub outputAssetsReport {
 						$outLine .= "\"$dataName\":\"$reportHash->{$assetName}->{$dataName}\", ";
 					}
 				} else {
-					$outLine .= "__UNDEF__";
+					if ($outputMode eq 'ascii') {
+						$outLine .= "__UNDEF__";
+					} else {
+						$outLine .= "\"$dataName\":UNDEF, ";
+					}
 				}
 				$outputCol++;
 			}
@@ -785,7 +802,7 @@ sub outputAssetsReport {
 		if ($outputMode eq 'ascii') {
 			$outLine .= "\n";
 		} elsif ($outputMode eq 'json') {
-			$outLine .= "}, \n";
+			$outLine .= "}\n";
 		}
 		$reportRows++;
 		$outputCol = 0;
@@ -793,6 +810,12 @@ sub outputAssetsReport {
 		# finally, output the line
 		print $outLine;
 	}
+
+	# close the JSON array
+	if ($outputMode eq 'json') {
+		print "  ]\n}\n";
+	}
+
 	# if they're in a terminal, tell them how many matching assets. if they're piping
 	# then skip that. it'll just confuse things.
 	if (-t STDOUT) {
