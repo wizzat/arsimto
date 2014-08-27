@@ -22,6 +22,7 @@ my $dataList = '';
 my $collectURI = 0;
 my $longMode = 0;
 my $outputMode = 'ascii';
+my $rootDir = '';
 
 # colour-based variables
 my $colourisedOutput = 0;
@@ -32,10 +33,6 @@ my $assetColour = "";
 my $dataColour = "";
 my $summaryColour = "";
 
-# names of directories
-my $poolDir = "Pools";
-my $assetDir = "Assets";
-
 # list of posible command sections
 my $cmdList = "add, ln, ls, mv, rename, rm, help";
 
@@ -44,15 +41,15 @@ my $topLevel = '__TOP_LEVEL_NO_PARENT';
 my $vennMode = 'union';
 my $pristineMode = 0;
 
+# if they want an rcfile, must be first arg
+my $rcFile = $ENV{"HOME"} . "/.arsimtorc";
+if ($ARGV && $ARGV[0] =~ /^-+r(cfile)*=(.+)$/) { $rcFile = $2; }
+
 # no arguments passed in? short help.
 unless (scalar @ARGV) {
 	doArgs('short');
 	exit 255;
 }
-
-# if they want an rcfile, must be first arg
-my $rcFile = $ENV{"HOME"} . "/.arsimtorc";
-if ($ARGV && $ARGV[0] =~ /^-+r(cfile)*=(.+)$/) { $rcFile = $2; }
 
 # read in rcfile if it exists - it'll just be args
 if (open (IFILE, "< $rcFile")) {
@@ -73,17 +70,39 @@ foreach my $arg (@ARGV) {
 	elsif ($arg =~ /^-+a(ssets)*=(.+)$/)        { $assetList = $2; }
 	elsif ($arg =~ /^-+c(ollect)*=(.+)$/)       { $collectURI = $2; }
 	elsif ($arg =~ /^-+c(olor)*$/)              { $colourisedOutput = 1; }
-	elsif ($arg =~ /^-+p(alette)*=(.+)$/)       { $colourPalette = $2; $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
 	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; }
-	elsif ($arg =~ /^-+j(son)*/)                { $outputMode = 'json'; $colourisedOutput = 0; }
+	elsif ($arg =~ /^-+j(son)*/)                { $outputMode = 'json'; }
 	elsif ($arg =~ /^-+l(ong)*/)                { $longMode = 1; }
+	elsif ($arg =~ /^-+p(alette)*=(.+)$/)       { $colourPalette = $2; $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+p(rist)*/)               { $pristineMode = 'pristine'; }
 	elsif ($arg =~ /^-+u(s)*$/)                 { doArgs('uses'); exit 0; }
+	elsif ($arg =~ /^-+t(op)*=(.+)$/)           { $rootDir = $2; }
 	elsif ($arg =~ /^-+v(erbose)*$/)            { $verbose = 1; }
 	elsif ($cmdList =~ /\b$arg\b/)              { $mode = $arg; }
 	else { push (@extraArgs, $arg); }
 }
+
+# if JSON output, override other things that would be silly
+if ($outputMode eq 'json') {
+	$colourisedOutput = 0;
+	$longMode = 0;
+}
+
+# there can be problems with the input rootDir
+if ($rootDir) {
+	# rootDir must end with trailing /
+	if ($rootDir !~ /\/$/) { $rootDir .= "/"; }
+
+	# Perl failes with ~/dir directory specification so change to $HOME
+	if ($rootDir =~ /^~/) { $rootDir =~ s/^~/$ENV{'HOME'}/; }
+}
+
+# names of directories
+my $poolDir = $rootDir . "Pools";
+my $assetDir = $rootDir . "Assets";
+
+if ($verbose && $rootDir) { print STDERR " - Using poolDir=$poolDir and assetDir=$assetDir.\n"; }
 
 # if they don't know what they're doing but tried something, help them
 unless ($mode) {
@@ -151,14 +170,20 @@ sub doArgs {
 		print "usage: $0 <command> [<assetObj>|<poolObj>] [<assetObj>|<poolObj>...]\n";
 		print "  [-v|--verboase] [-h|--help] [-d=|--data=<dataList>] [-p|--pristine]\n";
 		print "  [-c|--color] [-l|--long] [-p=|--palette=<p1,p2,p3,p4,p5>]\n";
-		print "  [-r=|--rcfile=<rcFile>]\n";
+		print "  [-r=|--rcfile=<rcFile>] [d=|--directory=<rootInventoryDir>]\n";
 		print "\n";
-		print "  -h        Long version help. Run without arguments for short help.\n";
+		print "  <command> See below for list of commands.\n";
+		print "  -c        Or --color, output in colorized mode.\n";
+		print "  -d=...    Or --data=..., the list of data key:value entries to report on or add.\n";
+		print "  -h        Or --help. Long version help. Run without arguments for short help.\n";
+		print "  -i        Or --intersection. Output intersection of Assets in Pools listed instead of union.\n";
+		print "  -j        Or --json. Output JSON structures instead of ASCII art.\n";
 		print "  -l        Or --long. Long output for Pools/ listing.\n";
 		print "  -p        Or --pristine. Don't reformat data values to be more (human-)readable.\n";
-		print "  -c        Or --color, output in colorized mode.\n";
 		print "  -p=...    Or --palette=..., the colors to output. ANSI color codes. Default is $colourPalette.\n";
+		print "  -r=...    Or --rcfile=..., read prefs from rcfile. Must be first argument. Default is $rcFile.\n";
 		print "  -u        Or --uses Output some common patterns of usage for Arsimto.\n";
+		print "  -t=...    Or --top=..., the top-level directory where Assets/ and Pools/ are stored.\n";
 		print "  -v        Verbose/debugging output\n";
 		print "  <command> is one of $cmdList.\n";
 		print "\n";
