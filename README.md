@@ -40,6 +40,28 @@ are two data values that must be re-encoded. I use the other special
 character `\` to encode it, which means you cannot use `\` in your data
 values.
 
+There is also a helper script, arsimtoREST which will listen on a port and
+transfer requests to arsimto. So for example, you might do this:
+
+    [inventoryhost]$ ./arsimtoREST -p=12345 >logfile 2>&1 &
+    [anotherhost]$ curl 'http://my.inventoryhost.localdomain:12345/ls&-l&-j&-i&MySQLs&SF&-d=name' 2>/dev/null
+
+Which will return this (all MySQL servers in SF):
+
+    {
+    	"arsimtoAssets":[
+    	{ "name":"srvr1a.sf" }
+    	, { "name":"srvr1b.sf" }
+    	, { "name":"srvr1c.sf" }
+    	, { "name":"srvr2a.sf" }
+    	, { "name":"srvr2b.sf" }
+    	, { "name":"srvr2c.sf" }
+    	, { "name":"srvr3a.sf" }
+    	, { "name":"srvr3b.sf" }
+    	, { "name":"srvr3c.sf" }
+    	]
+    }
+
 Assets
 ======
 

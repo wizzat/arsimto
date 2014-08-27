@@ -70,25 +70,26 @@ listen($sock , $queueLen);
 print "Server is now listening with queue length $queueLen\n";
  
 #accept incoming connections and talk to clients
-my $addrInfo;
 while(1)
 {
     my $client;
-    my $addrinfo = accept($client , $sock);
+    my $addrInfo = accept($client , $sock);
      
-    my($port, $iaddr) = sockaddr_in($addrinfo);
-	my $name = gethostbyaddr($iaddr, AF_INET);
+    my($port, $iaddr) = sockaddr_in($addrInfo);
+	#my $name = gethostbyaddr($iaddr, AF_INET);
 
 	my $sessionNum = int(rand(999999999));
-    doLog (" - sess=$sessionNum ; Connection accepted from $name");
+    doLog (" - sess=$sessionNum ; connection accepted");
 
 	# get from client, set to client!
 	my $input = <$client>;
 	my $arsimtoCmdLine = parseURLinput ($input);
+	doLog (" - sess=$sessionNum ; parsed input as [$arsimtoCmdLine]");
+
 	my $output = `./arsimto $arsimtoCmdLine  2>&1`;
      
     #send some message to the client
-    print $client "You said:\n$input\nArsimto replies:\n$output\n";
+    print $client "\n$output";
 }
  
 #close the socket
@@ -104,8 +105,8 @@ sub doArgs {
 	my $helpLength = shift;
 
 	if ($helpLength eq 'short') {
-		print "usage: $0 [-h|--help] [-v|--verbose] [-i=|--ip=<ipAddr>]\n";
-		print "  [-p=|--port=<portNum>] [-r=|--rcfile=<rcFile>]\n";
+		print "usage: $0 -p=|--port=<portNum> [-i=|--ip=<ipAddr>]\n";
+		print "  [-h|--help] [-v|--verbose] [-r=|--rcfile=<rcFile>]\n";
 		print "\n";
 	}
 
