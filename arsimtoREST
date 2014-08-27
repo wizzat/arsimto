@@ -1,0 +1,140 @@
+#!/usr/bin/perl
+# vim: set noexpandtab:
+# --
+# A recent battle with vim and a Go program finally settled this for me.
+# Tabs for indent, spaces for formatting. If you change your shiftwidth and
+# tabstop to different values and your code looks ugly, say aloud: tabs
+# for indent, spaces for formatting.
+# --
+# arsimtoREST listens on port <whatever> and takes REST URLs and calls
+# arsimto with the appropriate flags, then returns the result to the
+# client.
+#
+# license: gpl v2.
+# author: Tim Ellis, CTO Fifth Sigma, Inc.
+
+use strict;
+use warnings;
+use Socket;
+use POSIX qw/strftime/;
+
+# things passed in via arguments
+my @extraArgs;
+my $listenPort = 14321;
+my $listenIP = '0.0.0.0';
+my $verbose;
+
+# no arguments passed in? short help.
+unless (scalar @ARGV) {
+	doArgs('short');
+	exit 255;
+}
+
+# if they want an rcfile, must be first arg
+my $rcFile = $ENV{"HOME"} . "/.arsimtorc";
+if ($ARGV && $ARGV[0] =~ /^-+r(cfile)*=(.+)$/) { $rcFile = $2; }
+
+# read in rcfile if it exists - it'll just be args
+if (open (IFILE, "< $rcFile")) {
+	my $inLine;
+	while ($inLine = <IFILE>) {
+		chomp ($inLine);
+		# must put args from rcfile at start so options passed on the
+		# commandline will override them
+		if ($inLine =~ /^-+(\w+)/) {
+			unshift (@ARGV, $inLine);
+		}
+	}
+}
+
+# parse input arguments. put anything unparsed onto @extraArgs
+foreach my $arg (@ARGV) {
+	if ($arg =~ /^-+h(elp)*$/)                  { doArgs('long'); exit 0; }
+	elsif ($arg =~ /^-+i(p)*=(.+)$/)            { $listenIP = $2; }
+	elsif ($arg =~ /^-+p(ort)*=(.+)$/)          { $listenPort = $2; }
+	elsif ($arg =~ /^-+v(erbose)*$/)            { $verbose = 1; }
+	else { push (@extraArgs, $arg); }
+}
+
+
+# create a socket, make it reusable, bind to it, listen on it
+my $sock;
+my $queueLen = 10;
+socket($sock, PF_INET, SOCK_STREAM, getprotobyname('tcp'))
+	or die "Can't open socket $!\n";
+setsockopt($sock, SOL_SOCKET, SO_REUSEADDR, 1)
+	or die "Can't set socket option to SO_REUSEADDR $!\n";
+bind($sock , sockaddr_in($listenPort, INADDR_ANY))
+    or  die "bind failed : $!";
+listen($sock , $queueLen);
+print "Server is now listening with queue length $queueLen\n";
+ 
+#accept incoming connections and talk to clients
+my $addrInfo;
+while(1)
+{
+    my $client;
+    my $addrinfo = accept($client , $sock);
+     
+    my($port, $iaddr) = sockaddr_in($addrinfo);
+	my $name = gethostbyaddr($iaddr, AF_INET);
+
+	my $sessionNum = int(rand(999999999));
+    doLog (" - sess=$sessionNum ; Connection accepted from $name");
+
+	# get from client, set to client!
+	my $input = <$client>;
+	my $arsimtoCmdLine = parseURLinput ($input);
+	my $output = `./arsimto $arsimtoCmdLine  2>&1`;
+     
+    #send some message to the client
+    print $client "You said:\n$input\nArsimto replies:\n$output\n";
+}
+ 
+#close the socket
+close($sock);
+exit(0); 
+
+# ----------------------------------------------------------------------------------------
+# subroutines follow
+# ----------------------------------------------------------------------------------------
+
+# give help. either short and concise or long.
+sub doArgs {
+	my $helpLength = shift;
+
+	if ($helpLength eq 'short') {
+		print "usage: $0 [-h|--help] [-v|--verbose] [-i=|--ip=<ipAddr>]\n";
+		print "  [-p=|--port=<portNum>] [-r=|--rcfile=<rcFile>]\n";
+		print "\n";
+	}
+
+	if ($helpLength eq 'long') {
+		print "  -h        Long version help. Run without arguments for short help.\n";
+		print "  -p        Or --port. The port to listen on for REST calls.\n";
+		print "  -v        Verbose/debugging output\n";
+		print "\n";
+	}
+}
+
+# parse the input URI and make it something arsimto can comprehend
+sub parseURLinput {
+	my $inputLine = shift;
+	my $retVal = '';
+
+	# it's a REST call, so it'll be like GET /lipsum&ripsum&lor HTTP/1.1
+	if ($inputLine =~ /GET \/(.+?) HTTP/) {
+		$retVal = $1;
+		$retVal =~ s/&/ /g;
+	}
+	return $retVal;
+}
+
+# output a log message
+sub doLog {
+	my $message = shift;
+	my $currTime = strftime ('%Y-%m-%d %H:%M:%S', localtime);
+
+	print STDERR "$currTime $message\n";
+}
+
