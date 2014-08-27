@@ -44,7 +44,7 @@ There is also a helper script, arsimtoREST which will listen on a port and
 transfer requests to arsimto. So for example, you might do this:
 
     [inventoryhost]$ ./arsimtoREST -p=12345 >logfile 2>&1 &
-    [anotherhost]$ curl 'http://my.inventoryhost.localdomain:12345/ls&-l&-j&-i&MySQLs&SF&-d=name' 2>/dev/null
+    [anotherhost]$ curl 'http://my.inventoryhost.localdomain:12345/arsimto&ls&-l&-j&-i&MySQLs&SF&-d=name' 2>/dev/null
 
 Which will return this (all MySQL servers in SF):
 
@@ -61,6 +61,8 @@ Which will return this (all MySQL servers in SF):
     	, { "name":"srvr3c.sf" }
     	]
     }
+
+See the section below on arsimtoREST for more help on setting it up.
 
 Assets
 ======
@@ -105,7 +107,16 @@ Asset can appear in two Pools (Production and Databases and Oregon, for
 example), a Pool can appear in two other Pools.
 
 The purpose of Pools is to avoid having to type all the names of every Asset or
-Pool that are logically grouped every time. 
+Pool that are logically grouped every time.
+
+The arsimtoREST Helper
+======================
+
+ 1. Put arsimto into the `$PATH` of the user executing arsimtoREST.
+ 2. Put `$HOME/.arsimtorc` for the user executing arsimtoREST.
+ 3. Add `--top=/path/to/arsimto/inventory/` into the .arsimtorc.
+ 4. Execute `./arsimtoREST --port=54321 >logfile 2>&1 &`.
+ 5. Submit an issue if this doesn't work.
 
 Examples
 ========

@@ -522,11 +522,18 @@ sub listAssets {
 		$extraArgs[0] = $poolDir;
 	}
 
-	# two major modes: first is output a view of all the pools.
+	# two major modes: first is output a view of all the Pools/Assets.
 	if ($extraArgs[0] =~ /^$poolDir\/*$/) {
 		# first collect all top-level pool names, some of which might
 		# be children of others
 		my $poolList = fileList ($poolDir, '.');
+
+		# collect a full list of assets to show unassigned ones at the end
+		# we'll delete each of these as we find them
+		my $unassignedAssets;
+		foreach my $oneAsset (@{fileList ($assetDir, '.')}) {
+			$unassignedAssets->{$oneAsset} = 1;
+		}
 
 		if ($outputMode eq 'json') {
 			$longMode = 1;
@@ -566,6 +573,14 @@ sub listAssets {
 						$reportHash->{$currPool}->{'childrenAssets'} .= "+";
 					}
 				}
+				delete $unassignedAssets->{$oneAsset};
+			}
+		}
+
+		# build a list of assets that didn't show up in any pools
+		if ($longMode) {
+			foreach my $oneAsset (keys %{$unassignedAssets}) {
+				$reportHash->{'00-UNLINKED-ASSETS'}->{'childrenAssets'} .= "$oneAsset ";
 			}
 		}
 

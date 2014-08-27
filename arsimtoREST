@@ -6,9 +6,16 @@
 # tabstop to different values and your code looks ugly, say aloud: tabs
 # for indent, spaces for formatting.
 # --
-# arsimtoREST listens on port <whatever> and takes REST URLs and calls
+# arsimtoREST listens on --port=<whatever> and takes REST URLs and calls
 # arsimto with the appropriate flags, then returns the result to the
 # client.
+# --
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# THIS SCRIPT IS NOT SECURE! It simply passes user input straight through to a
+# Unix command run as the executing user. Do not expose this to a port where
+# malicious attackers might be able to get to it! It will roll over and give
+# them the keys to your kingdom. You have been warned.
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #
 # license: gpl v2.
 # author: Tim Ellis, CTO Fifth Sigma, Inc.
@@ -74,7 +81,7 @@ while(1)
 {
     my $client;
     my $addrInfo = accept($client , $sock);
-     
+
     my($port, $iaddr) = sockaddr_in($addrInfo);
 	#my $name = gethostbyaddr($iaddr, AF_INET);
 
@@ -86,8 +93,13 @@ while(1)
 	my $arsimtoCmdLine = parseURLinput ($input);
 	doLog (" - sess=$sessionNum ; parsed input as [$arsimtoCmdLine]");
 
-	my $output = `./arsimto $arsimtoCmdLine  2>&1`;
-     
+	my $output = '';
+	if ($arsimtoCmdLine =~ /^ERR/) {
+		$output = $arsimtoCmdLine;
+	} else {
+		$output = `./arsimto $arsimtoCmdLine  2>&1`;
+	}
+
     #send some message to the client
     print $client "\n$output";
 }
@@ -124,9 +136,11 @@ sub parseURLinput {
 	my $retVal = '';
 
 	# it's a REST call, so it'll be like GET /lipsum&ripsum&lor HTTP/1.1
-	if ($inputLine =~ /GET \/(.+?) HTTP/) {
+	if ($inputLine =~ /GET \/arsimto&(.+?) HTTP/) {
 		$retVal = $1;
 		$retVal =~ s/&/ /g;
+	} else {
+		return "ERRNOARSIMTO: This is Arsimto REST helper. URL must begin with /arsimto& - See the github Arsimto project for more details.";
 	}
 	return $retVal;
 }
