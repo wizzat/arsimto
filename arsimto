@@ -23,6 +23,7 @@ my $collectURI = 0;
 my $longMode = 0;
 my $outputMode = 'ascii';
 my $rootDir = '';
+my $edgeNodeMode = 0;
 
 # colour-based variables
 my $colourisedOutput = 0;
@@ -71,6 +72,7 @@ foreach my $arg (@ARGV) {
 	elsif ($arg =~ /^-+c(ollect)*=(.+)$/)       { $collectURI = $2; }
 	elsif ($arg =~ /^-+c(olor)*$/)              { $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
+	elsif ($arg =~ /^-+e(dge)*/)                { $edgeNodeMode = 1; }
 	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; }
 	elsif ($arg =~ /^-+j(son)*/)                { $outputMode = 'json'; }
 	elsif ($arg =~ /^-+l(ong)*/)                { $longMode = 1; }
@@ -515,84 +517,102 @@ sub lnAssets {
 # if a given Pools/X contains an asset Y, and Pools/Y exists,
 # then Pools/Y is a child of Pools/X
 sub listAssets {
-	my $reportHash;
-
 	# no args at all? just list pools.
 	if (!defined $extraArgs[0]) {
 		$extraArgs[0] = $poolDir;
 	}
 
-	# two major modes: first is output a view of all the Pools/Assets.
-	if ($extraArgs[0] =~ /^$poolDir\/*$/) {
-		# first collect all top-level pool names, some of which might
-		# be children of others
-		my $poolList = fileList ($poolDir, '.');
+	# three major modes:
+	#  - output a view of all the Pools/Assets.
+	#  - output an Edge/Node view
+	#  - output a list of Assets and a report on their data attributes
 
-		# collect a full list of assets to show unassigned ones at the end
-		# we'll delete each of these as we find them
-		my $unassignedAssets;
-		foreach my $oneAsset (@{fileList ($assetDir, '.')}) {
-			$unassignedAssets->{$oneAsset} = 1;
-		}
-
-		if ($outputMode eq 'json') {
-			$longMode = 1;
-		}
-
-		# put the list of top-level pools into the report hash...
-		foreach my $currPool (@{$poolList}) {
-			$reportHash->{$currPool}->{'parent'} = $topLevel;
-		}
-
-		# second collect all assets inside the top-level pool names
-		# and if they match top-level pool, create two-way link between
-		# them in the hash
-		foreach my $currPool (@{$poolList}) {
-			my $assetList = fileList ("$poolDir/$currPool", '.');
-
-			foreach my $oneAsset (@{$assetList}) {
-				# if the oneAsset is already in the reportHash, it's because it's
-				# also a pool, so add it to the childrenPools portion. otherwise
-				# it's an asset, so add it to the childrenAssets portion.
-				if (defined $reportHash->{$oneAsset}) {
-					if ($verbose) { print STDERR "   - Setting $currPool --> $oneAsset link\n"; }
-
-					if ($longMode) {
-						if ($outputMode eq 'json') {
-							$reportHash->{$currPool}->{'childrenPools'} .= "$oneAsset ";
-						} else {
-							$reportHash->{$currPool}->{'childrenPools'} .= "($oneAsset) ";
-						}
-					} else {
-						$reportHash->{$currPool}->{'childrenPools'} .= "()";
-					}
-				} else {
-					if ($longMode) {
-						$reportHash->{$currPool}->{'childrenAssets'} .= "$oneAsset ";
-					} else {
-						$reportHash->{$currPool}->{'childrenAssets'} .= "+";
-					}
-				}
-				delete $unassignedAssets->{$oneAsset};
-			}
-		}
-
-		# build a list of assets that didn't show up in any pools
-		if ($longMode) {
-			foreach my $oneAsset (keys %{$unassignedAssets}) {
-				$reportHash->{'00-UNLINKED-ASSETS'}->{'childrenAssets'} .= "$oneAsset ";
-			}
-		}
-
-		# third, output the hash
-		outputHashTree ($reportHash, $topLevel, 0);
-
+	if ($edgeNodeMode) {
+		outputEdgesNodes();
 		return 0;
 	}
 
-	# second major mode is outputing a list of Assets - outsource this to
+	# view of all Pools/Assets
+	if ($extraArgs[0] =~ /^$poolDir\/*$/) {
+		listAllPoolsAssets();
+		return 0;
+	}
+
+	# list of Assets and data Attributes - outsource this to
 	# reportAssets()
 	reportAssets();
+}
+
+# output the list of Pools and Assets in Edge/Node format for easy graphing
+sub outputEdgesNodes {
+	my $assetList = collectAssetList();
+	my $edgeIndex = 0;
+	my $nodeIndex = 0;
+	my $nodeList;
+	my $nodeLookup;
+	my $edgeList;
+
+	# every Pool specified on commandline is a Node
+	foreach my $pool (@extraArgs) {
+		$nodeLookup->{$pool}->{index} = $nodeIndex;
+		$nodeLookup->{$pool}->{type} = 'Pool';
+		$nodeList->[$nodeIndex] = $pool;
+		$nodeIndex++;
+	}
+
+	# every Asset found from collectAssetList is a Node
+	foreach my $asset (@{$assetList}) {
+		$nodeLookup->{$asset}->{index} = $nodeIndex;
+		$nodeLookup->{$asset}->{type} = 'Asset';
+		$nodeList->[$nodeIndex] = $asset;
+		$nodeIndex++;
+	}
+
+	# every Asset/Pool inside a Pool creates an Edge
+	foreach my $pool (@extraArgs) {
+		foreach my $asset (@{fileList ("$poolDir/$pool", '.')}) {
+			if ($nodeLookup->{$asset}->{index} && -d "$poolDir/$pool/$asset") {
+				# TODO: Collect weight/type/direction from poolDir/pool/asset/... set of attributes
+				$edgeList->{$edgeIndex}->{weight} = 5;
+				$edgeList->{$edgeIndex}->{type} = 'Generic';
+				$edgeList->{$edgeIndex}->{direction} = 0;
+				if (defined $nodeLookup->{$pool}->{index}) {
+					$edgeList->{$edgeIndex}->{left} = $nodeLookup->{$pool}->{index};
+				} else {
+					if ($verbose) { print "Undefined edge?! pool=$pool, edgeIndex=$edgeIndex\n"; }
+				}
+				if (defined $nodeLookup->{$asset}->{index}) {
+					$edgeList->{$edgeIndex}->{right} = $nodeLookup->{$asset}->{index};
+				} else {
+					if ($verbose) { print "Undefined edge?! asset=$asset, edgeIndex=$edgeIndex\n"; }
+				}
+				$edgeIndex++;
+			}
+		}
+	}
+
+	# output a JSON of nodes/edges
+	my $commaOutput=0;
+	print qq#{\n\  "nodes":[\n#;
+	for (my $i=0; $i < $nodeIndex; $i++) {
+		if ($commaOutput++) {
+			print "   ,";
+		} else {
+			print "    ";
+		}
+		print qq#{ "name":"$nodeList->[$i]", "group":1 }\n#;
+	}
+	$commaOutput=0;
+	print qq#  ]\n ,"edges":[\n#;
+	for (my $i=0; $i < $edgeIndex; $i++) {
+		if ($commaOutput++) {
+			print "   ,";
+		} else {
+			print "    ";
+		}
+		print qq#{ "source":$edgeList->{$i}->{left}, "target":$edgeList->{$i}->{right}, "value":$edgeList->{$i}->{weight} }\n#;
+	}
+	print qq#  ]\n}\n#;
 }
 
 # based on the objects listed in @extraArgs, make an array of assets in the
@@ -657,6 +677,73 @@ sub collectAssetList {
 
 	@{$assetList} = sort keys %{$assetHash};
 	return $assetList;
+}
+
+sub listAllPoolsAssets {
+	my $reportHash;
+
+	# collect all top-level pool names, some of which might
+	# be children of others
+	my $poolList = fileList ($poolDir, '.');
+
+	# collect a full list of assets to show unassigned ones at the end
+	# we'll delete each of these as we find them
+	my $unassignedAssets;
+	foreach my $oneAsset (@{fileList ($assetDir, '.')}) {
+		$unassignedAssets->{$oneAsset} = 1;
+	}
+
+	if ($outputMode eq 'json') {
+		$longMode = 1;
+	}
+
+	# put the list of top-level pools into the report hash...
+	foreach my $currPool (@{$poolList}) {
+		$reportHash->{$currPool}->{'parent'} = $topLevel;
+	}
+
+	# second collect all assets inside the top-level pool names
+	# and if they match top-level pool, create two-way link between
+	# them in the hash
+	foreach my $currPool (@{$poolList}) {
+		my $assetList = fileList ("$poolDir/$currPool", '.');
+
+		foreach my $oneAsset (@{$assetList}) {
+			# if the oneAsset is already in the reportHash, it's because it's
+			# also a pool, so add it to the childrenPools portion. otherwise
+			# it's an asset, so add it to the childrenAssets portion.
+			if (defined $reportHash->{$oneAsset}) {
+				if ($verbose) { print STDERR "   - Setting $currPool --> $oneAsset link\n"; }
+
+				if ($longMode) {
+					if ($outputMode eq 'json') {
+						$reportHash->{$currPool}->{'childrenPools'} .= "$oneAsset ";
+					} else {
+						$reportHash->{$currPool}->{'childrenPools'} .= "($oneAsset) ";
+					}
+				} else {
+					$reportHash->{$currPool}->{'childrenPools'} .= "()";
+				}
+			} else {
+				if ($longMode) {
+					$reportHash->{$currPool}->{'childrenAssets'} .= "$oneAsset ";
+				} else {
+					$reportHash->{$currPool}->{'childrenAssets'} .= "+";
+				}
+			}
+			delete $unassignedAssets->{$oneAsset};
+		}
+	}
+
+	# build a list of assets that didn't show up in any pools
+	if ($longMode) {
+		foreach my $oneAsset (keys %{$unassignedAssets}) {
+			$reportHash->{'00-UNLINKED-ASSETS'}->{'childrenAssets'} .= "$oneAsset ";
+		}
+	}
+
+	# output the hash
+	outputHashTree ($reportHash, $topLevel, 0);
 }
 
 # traverse a tree struct implemented inside a hash
