@@ -603,7 +603,7 @@ sub outputEdgesNodes {
 		print qq#{ "name":"$nodeList->[$i]", "group":1 }\n#;
 	}
 	$commaOutput=0;
-	print qq#  ]\n ,"edges":[\n#;
+	print qq#  ]\n ,"links":[\n#;
 	for (my $i=0; $i < $edgeIndex; $i++) {
 		if ($commaOutput++) {
 			print "   ,";

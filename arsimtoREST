@@ -97,8 +97,24 @@ while(1)
 	if ($arsimtoCmdLine =~ /^ERR/) {
 		$output = $arsimtoCmdLine;
 	} else {
-		$output = `./arsimto $arsimtoCmdLine  2>&1`;
+		$output = `arsimto $arsimtoCmdLine  2>&1`;
 	}
+
+	my $outLen = length($output);
+	doLog (" - sess=$sessionNum ; output length:$outLen");
+
+	#send some message to the client
+	print $client
+	"HTTP/1.x 200 OK\015\012" .
+	"Accept-Ranges: bytes\015\012" .
+	"Connection: keep-alive\015\012" .
+	"Content-Length: $outLen\015\012" .
+	"Content-Type: application/json\015\012" .
+	"Server: arsimto/1.2 (Timeless)\015\012" .
+	"Access-Control-Allow-Origin: *\015\012" .
+	"\015\012" .
+	"$output";
+	;
 
     #send some message to the client
     print $client "\n$output";
@@ -136,11 +152,12 @@ sub parseURLinput {
 	my $retVal = '';
 
 	# it's a REST call, so it'll be like GET /lipsum&ripsum&lor HTTP/1.1
-	if ($inputLine =~ /GET \/arsimto&(.+?) HTTP/) {
+	# if they stick ".json" at the end, accept it but strip it away
+	if ($inputLine =~ /GET \/arsimto\/(.+?)(\.json)* HTTP/) {
 		$retVal = $1;
-		$retVal =~ s/&/ /g;
+		$retVal =~ s/\// /g;
 	} else {
-		return "ERRNOARSIMTO: This is Arsimto REST helper. URL must begin with /arsimto& - See the github Arsimto project for more details.";
+		return "ERRNOARSIMTO: This is Arsimto REST helper. URL must be /arsimto/arg/arg/arg - See the github Arsimto project for more details.";
 	}
 	return $retVal;
 }
