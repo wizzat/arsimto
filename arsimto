@@ -545,12 +545,20 @@ sub listAssets {
 
 # output the list of Pools and Assets in Edge/Node format for easy graphing
 sub outputEdgesNodes {
-	my $assetList = collectAssetList();
 	my $edgeIndex = 0;
 	my $nodeIndex = 0;
 	my $nodeList;
 	my $nodeLookup;
 	my $edgeList;
+
+	# if no Pools were specified, get them all
+	if ($extraArgs[0] =~ /^$poolDir\/*$/) {
+		@extraArgs = @{fileList ("$poolDir", '.')};
+	}
+	if ($verbose) { print STDERR " - Building Node/Edge JSON for " . scalar @extraArgs . " pools.\n"; }
+
+	# get all assets from the pools they specified
+	my $assetList = collectAssetList();
 
 	# every Pool specified on commandline is a Node
 	foreach my $pool (@extraArgs) {
@@ -570,6 +578,7 @@ sub outputEdgesNodes {
 
 	# every Asset/Pool inside a Pool creates an Edge
 	foreach my $pool (@extraArgs) {
+		if ($verbose) { print STDERR " - Building Edge list for $pool\n"; }
 		foreach my $asset (@{fileList ("$poolDir/$pool", '.')}) {
 			if ($nodeLookup->{$asset}->{index} && -d "$poolDir/$pool/$asset") {
 				# TODO: Collect weight/type/direction from poolDir/pool/asset/... set of attributes

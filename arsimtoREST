@@ -100,8 +100,9 @@ while(1)
 		$output = `arsimto $arsimtoCmdLine  2>&1`;
 	}
 
+	# determine Content-Length
 	my $outLen = length($output);
-	doLog (" - sess=$sessionNum ; output length:$outLen");
+	doLog (" - sess=$sessionNum ; Content-Length:$outLen");
 
 	#send some message to the client
 	print $client
@@ -115,9 +116,6 @@ while(1)
 	"\015\012" .
 	"$output";
 	;
-
-    #send some message to the client
-    print $client "\n$output";
 }
  
 #close the socket
