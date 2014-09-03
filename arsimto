@@ -562,10 +562,12 @@ sub outputEdgesNodes {
 
 	# every Asset found from collectAssetList is a Node
 	foreach my $asset (@{$assetList}) {
-		$nodeLookup->{$asset}->{index} = $nodeIndex;
-		$nodeLookup->{$asset}->{type} = 'Asset';
-		$nodeList->[$nodeIndex] = $asset;
-		$nodeIndex++;
+		unless ($nodeLookup->{$asset}->{index}) {
+			$nodeLookup->{$asset}->{index} = $nodeIndex;
+			$nodeLookup->{$asset}->{type} = 'Asset';
+			$nodeList->[$nodeIndex] = $asset;
+			$nodeIndex++;
+		}
 	}
 
 	# every Asset/Pool inside a Pool creates an Edge
@@ -703,7 +705,7 @@ sub listAllPoolsAssets {
 	}
 
 	# second collect all assets inside the top-level pool names
-	# and if they match top-level pool, create two-way link between
+	# and if they match top-level pool, create link between
 	# them in the hash
 	foreach my $currPool (@{$poolList}) {
 		my $assetList = fileList ("$poolDir/$currPool", '.');

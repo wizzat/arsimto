@@ -348,6 +348,12 @@ for example. Here's what it looks like:
 	(server5678) --> (server8901)
 	(server8901) --> (server1234)
 
+### Q: Deleting a link between Pool and linked Pool/Asset?
+A: This is not yet implemented, but true to Arsimto's simple form, you can do
+it with a simple Unix command: `rm -rf Pools/Linker/Linkee` will remove the link
+between the Linker and Linkee. This works whether the Linkee is another Pool or
+an Asset.
+
 Performance
 ===========
 
