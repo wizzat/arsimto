@@ -288,24 +288,23 @@ sub fileList {
 
 	# if they gave us a file instead of dir, just return
 	unless (-d $dirName) {
-		if ($verbose) { print STDERR " W $dirName isn't a directory. Returning undef.\n"; }
-		return undef;
+		if ($verbose) { print STDERR " W $dirName isn't a directory. Returning empty array.\n"; }
+		return [ ];
 	}
 
 	if (opendir my($dirHandle), $dirName) {
 		@{$fileList} = grep { /$matchExp/ } readdir ($dirHandle);
+		closedir ($dirHandle);
 
 		# if they didn't explicitly ask for dotfiles, don't return them
 		if ($matchExp eq '.' || $matchExp !~ /^\./) {
 			@{$fileList} = grep { !/^\./ } @{$fileList};
 		}
 
-		closedir ($dirHandle);
-
 		return $fileList;
 	} else {
 		if ($verbose) { print STDERR " E Could not open $dirName for reading!\n"; }
-		return undef;
+		return [ ];
 	}
 }
 
@@ -431,8 +430,12 @@ sub addAssets {
 			}
 
 			if ($verbose) { print STDERR "   - Collecting extIP\n"; }
-			my $extIP=`ping -c 1 $collectHost | grep 'bytes of data' | awk -F '(' '{print \$2}' | awk -F ')' '{print \$1}'`;
-			chomp ($extIP);
+			my $extIP=`host -t a $collectHost`;
+			if ($extIP =~ /has address (.+)$/) {
+				$extIP = $1;
+			} else {
+				$extIP = 'UNKNOWN';
+			}
 
 			if ($verbose) { print STDERR "   - Collecting CPUcount\n"; }
 			my $cpuCount = `ssh $collectURI "cat /proc/cpuinfo | grep ^processor | wc -l"`;
@@ -700,8 +703,14 @@ sub listAllPoolsAssets {
 	# collect a full list of assets to show unassigned ones at the end
 	# we'll delete each of these as we find them
 	my $unassignedAssets;
-	foreach my $oneAsset (@{fileList ($assetDir, '.')}) {
-		$unassignedAssets->{$oneAsset} = 1;
+	my $buildUnassignedAssets = fileList ($assetDir, '.');
+	if (scalar @{$buildUnassignedAssets}) {
+		foreach my $oneAsset (@{$buildUnassignedAssets}) {
+			$unassignedAssets->{$oneAsset} = 1;
+		}
+	} else {
+		print STDERR " E No Assets in directory $assetDir/. Add some with $0 add?\n";
+		exit 252;
 	}
 
 	if ($outputMode eq 'json') {
