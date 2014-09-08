@@ -509,9 +509,8 @@ sub lnAssets {
 		# all these are linkees
 		foreach my $childAsset (@extraArgs) {
 			# every pool should also be an asset so it can have data
-			system ("mkdir -p $poolDir/$parentAsset/$childAsset && mkdir -p $assetDir/$childAsset");
+			system ("mkdir -p $poolDir/$parentAsset/$childAsset");
 			touchFile ("$poolDir/$parentAsset/$childAsset/.dataList");
-			touchFile ("$assetDir/$childAsset/.dataList");
 			print " - Connected $parentAsset --> $childAsset\n";
 		}
 	} else {
@@ -733,22 +732,26 @@ sub getAssetHash {
 		}
 
 		foreach my $oneAsset (@{$assetList}) {
-			if ($verbose) { print STDERR " - Pool $currPool -> $oneAsset\n"; }
-			push (@{$reportHash->{$currPool}->{children}}, "$oneAsset");
 			$reportHash->{$oneAsset}->{parent} = $currPool;
 			$reportHash->{$oneAsset}->{poolCount}++;
 			delete $unassignedAssets->{$oneAsset};
-			foreach my $oneAttr (@{getDataFromAsset ($oneAsset)}) {
-				if ($oneAttr =~ /^(.+?):(.+)$/) {
-					my $dataName = $1;
-					my $dataVal = $2;
+			push (@{$reportHash->{$currPool}->{children}}, "$oneAsset");
 
-					# if this data matches the list they want, put into report
-					if ($dataList eq '*' || $dataList =~ /\b$dataName\b/) {
-						if (!$pristineMode && $dataVal =~ /^(\d+)$/) {
-							$dataVal = addCommas($dataVal);
+			if (-d "$assetDir/$oneAsset") {
+				# if it's an actual Asset, collect its info
+				if ($verbose) { print STDERR " - Pool $currPool -> $oneAsset\n"; }
+				foreach my $oneAttr (@{getDataFromAsset ($oneAsset)}) {
+					if ($oneAttr =~ /^(.+?):(.+)$/) {
+						my $dataName = $1;
+						my $dataVal = $2;
+
+						# if this data matches the list they want, put into report
+						if ($dataList eq '*' || $dataList =~ /\b$dataName\b/) {
+							if (!$pristineMode && $dataVal =~ /^(\d+)$/) {
+								$dataVal = addCommas($dataVal);
+							}
+							$reportHash->{$oneAsset}->{attrs}->{$dataName} = $dataVal;
 						}
-						$reportHash->{$oneAsset}->{attrs}->{$dataName} = $dataVal;
 					}
 				}
 			}
@@ -783,78 +786,73 @@ sub outputHashTree {
 		$poolName =~ s/^\+//;
 		if (-t STDOUT && $outputMode eq 'ascii') {
 			if ($colourisedOutput) { print "$poolColour"; }
-			print "($poolName)\n";
+			print "($poolName)";
+			if ($dataList) { print "\n"; }
 			if ($colourisedOutput) { print "$regularColour"; }
 		} elsif ($outputMode eq 'json') {
 			print "  \"$poolName\":";
 		}
-		foreach my $parentKey (sort keys %{$hashToTraverse}) {
-			if ($hashToTraverse->{$parentKey}->{parent} eq $topLevel) {
-				printAssetsAttributes ($parentKey, $hashToTraverse);
+	}
+	foreach my $parentKey (sort keys %{$hashToTraverse}) {
+		# if this is a top-level node of the hash it's a Pool, otherwise it's
+		# an Asset
+		if (-d "$poolDir/$parentKey") {
+			if ($reportRows++) {
+				if ($outputMode eq 'json') {
+					print ',';
+				}
+			} else {
+				if ($outputMode eq 'json') {
+					print ' ';
+				}
+			}
 
-				# we really only need to print the Assets of a single
-				# Pool in vennMode intersection, since the Asset printing
-				# will only print Assets that appeared in all pools
+			# print the parent - but only if STDOUT report
+			if (-t STDOUT && $outputMode eq 'ascii' && $vennMode ne 'intersection') {
+				if ($colourisedOutput) { print $poolColour; }
+				print "($parentKey)";
+				if ($colourisedOutput) { print $regularColour; }
+				if ($dataList) {
+					print "\n";
+				}
+			} elsif ($outputMode eq 'json') {
+				print " \"$parentKey\":";
+			}
+
+			if ($dataList) {
+				printAssetsAttributes ($parentKey, $hashToTraverse);
+			} else {
+				printPoolPlusAssetGraphic ($parentKey, $hashToTraverse);
+			}
+
+			if ($vennMode eq 'intersection') {
+				# in vennMode intersection, only output a single Pool, the
+				# Asset printing will only print Assets that appeared in all
+				# pools
 				last;
 			}
 		}
-		if ($outputMode eq 'json') {
-			print "}\n";
-		}
-	} else {
-		foreach my $parentKey (sort keys %{$hashToTraverse}) {
-			# if this is a top-level node of the hash it's a Pool, otherwise it's
-			# an Asset
-			if (defined $hashToTraverse->{$parentKey}->{parent} && $hashToTraverse->{$parentKey}->{parent} eq $topLevel) {
-				if ($reportRows++) {
-					if ($outputMode eq 'json') {
-						print ',';
-					}
-				} else {
-					if ($outputMode eq 'json') {
-						print ' ';
-					}
-				}
-
-				# print the parent - but only if STDOUT report
-				if (-t STDOUT && $outputMode eq 'ascii') {
-					if ($colourisedOutput) { print $poolColour; }
-					print "($parentKey)";
-					if ($colourisedOutput) { print $regularColour; }
-					if ($dataList) {
-						print "\n";
-					}
-				} elsif ($outputMode eq 'json') {
-					print " \"$parentKey\":";
-				}
-
-				if ($dataList) {
-					printAssetsAttributes ($parentKey, $hashToTraverse);
-				} else {
-					printPoolPlusAssetGraphic ($hashToTraverse->{$parentKey}->{children});
-				}
-			}
-		}
 
 		if ($outputMode eq 'json') {
 			print "}\n";
 		}
+	}
 
-		# if they're in a terminal, tell them how many matching Pools. if they're piping
-		# then skip that. it'll just confuse things.
-		if (-t STDOUT) {
-			if ($colourisedOutput) { print STDERR $summaryColour; }
-			print STDERR " - $reportRows pools.\n";
-			if ($colourisedOutput) { print STDERR $regularColour; }
-		}
+	# if they're in a terminal, tell them how many matching Pools. if they're piping
+	# then skip that. it'll just confuse things.
+	if (-t STDOUT) {
+		if ($colourisedOutput) { print STDERR $summaryColour; }
+		print STDERR " - $reportRows pools.\n";
+		if ($colourisedOutput) { print STDERR $regularColour; }
 	}
 }
 
 sub printPoolPlusAssetGraphic {
-	my $childHash = shift;
+	my $parentKey = shift;
+	my $attrHash = shift;
 
 	# if we have some Pools/Assets children then we indicate such
-	if (defined $childHash) {
+	if (defined $attrHash->{$parentKey}->{children}) {
 		if ($outputMode eq 'ascii') {
 			print " --> ";
 		} elsif ($outputMode eq 'json') {
@@ -863,10 +861,15 @@ sub printPoolPlusAssetGraphic {
 
 		# build an output string
 		my $outputString = '';
-		if (scalar @{$childHash}) {
+		if (scalar @{$attrHash->{$parentKey}->{children}}) {
 			if ($outputMode eq 'ascii') {
-				foreach my $oneObject (@{$childHash}) {
-					if ($verbose) { print STDERR " - Testing if $poolDir/$oneObject exists and is thus a Pool...\n"; }
+				foreach my $oneObject (@{$attrHash->{$parentKey}->{children}}) {
+					# only output objects in all Pools if intersection
+					next if ($vennMode eq 'intersection' && $attrHash->{$oneObject}->{poolCount} < scalar @extraArgs);
+
+					# Pools have different output characteristics and go
+					# at the start, so we must do two loops
+					if ($verbose) { print STDERR " - Testing if $poolDir/$oneObject exists and is thus a Pool\n"; }
 					if (-d "$poolDir/$oneObject") {
 						if ($colourisedOutput) { $outputString .= $poolColour; }
 						if ($longMode) {
@@ -876,7 +879,11 @@ sub printPoolPlusAssetGraphic {
 						}
 					}
 				}
-				foreach my $oneObject (@{$childHash}) {
+				foreach my $oneObject (@{$attrHash->{$parentKey}->{children}}) {
+					# only output objects in all Pools if intersection
+					next if ($vennMode eq 'intersection' && $attrHash->{$oneObject}->{poolCount} < scalar @extraArgs);
+
+					# Assets get printed after Pools
 					unless (-d "$poolDir/$oneObject") {
 						if ($colourisedOutput) { $outputString .= $assetColour; }
 						if ($longMode) {
@@ -888,7 +895,10 @@ sub printPoolPlusAssetGraphic {
 				}
 			} else {
 				my $reportRow = 0;
-				foreach my $oneObject (@{$childHash}) {
+				foreach my $oneObject (@{$attrHash->{$parentKey}->{children}}) {
+					# only output objects in all Pools if intersection
+					next if ($vennMode eq 'intersection' && $attrHash->{$oneObject}->{poolCount} < scalar @extraArgs);
+
 					$outputString .= "    ";
 					if ($reportRow++) { $outputString .= ", "; } else { $outputString .= "  "; }
 					$outputString .= "{ \"name\":\"$oneObject\" }\n";
@@ -926,6 +936,7 @@ sub printAssetsAttributes {
 
 	# each Asset and their Data attributes...
 	my $reportRows = 0;
+	if ($verbose) { print STDERR " - Doing children of $keyToShow\n"; }
 	foreach my $assetName (@{$attrHash->{$keyToShow}->{children}}) {
 		my $outLine = '';
 

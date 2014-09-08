@@ -167,23 +167,23 @@ will do a slightly more-complex real-world setup with more assets. All the
 following happens in a Linux BASH (things might be a bit odd on OSX) shell.
 Let's begin by creating a number of assets:
 
-    for i in {01..20} ; do arsimto add server-$i.or --data=ip:10.2.0.$i ; done
-    for i in {01..20} ; do arsimto add server-$i.sf --data=ip:10.2.1.$i ; done
+    for i in {101..120} ; do arsimto add server-$i.or --data=ip:10.2.0.$i ; done
+    for i in {101..120} ; do arsimto add server-$i.sf --data=ip:10.2.1.$i ; done
 
 Now we'll segregate them according to their purpose. We'll have some MySQLs,
 some WWWs, and some memcacheds. We'll add machine-specific data and put
 them into pools:
 
     for dc in or sf ; do
-        for i in {01..05} ; do
+        for i in {101..105} ; do
 		    arsimto add server-$i.$dc --data=disk:8tB,network:20gb,ram:64GB,cpus:24 ;
 			arsimto ln mysql server-$i.$dc ;
 		done ;
-	    for i in {06..10} ; do
+	    for i in {106..110} ; do
 		    arsimto add server-$i.$dc --data=disk:1tB,network:10gb,ram:8GB,cpus:8 ;
 			arsimto ln www server-$i.$dc ;
 		done ;
-        for i in {11..20} ; do
+        for i in {111..120} ; do
 		    arsimto add server-$i.$dc --data=disk:8gB,network:40gb,ram:32GB,cpus:4 ;
 			arsimto ln memcached server-$i.$dc ;
 		done ;
@@ -197,43 +197,68 @@ in the future.
 Now we have two datacenters, we should reflect that. We'll pretend these are in
 Amazon.
 
-    for i in {01..20} ; do arsimto ln SF server-$i.sf ; done
-    for i in {01..20} ; do arsimto ln OR server-$i.or ; done
+    for i in {101..120} ; do arsimto ln SF server-$i.sf ; done
+    for i in {101..120} ; do arsimto ln OR server-$i.or ; done
     arsimto ln AWS OR
     arsimto ln AWS SF
 
 Now let's see how things look:
 
-    arsimto ls -l
-	(AWS) --> (OR) (SF) 
+    arsimto ls
+	(AWS) --> () () 
 	(OR) --> ++++++++++++++++++++
 	(SF) --> ++++++++++++++++++++
 	(memcached) --> ++++++++++++++++++++
 	(mysql) --> ++++++++++
 	(www) --> ++++++++++
+	 - 6 pools.
 
 If a pool points to another pool, it shows up as `(PointingPool) --> (PointedPool)` and any
 further assets are printed as `+`. To see the actual asset, do `arsimto ls Pools/PointingPool`.
 
-Now let's move some servers around to complicate things, like real life:
+Let's further put some Assets into production, and some into staging. Note that
+Oregon and San Francisco aren't entirely symmetric here, adding some complexity
+into our inventory.
 
-    arsimto mv Pools/memcached/server-1[4-6]* Pools/www/
-    arsimto mv Pools/www/server-0[6-7]* Pools/mysql/
+	arsimto ln production server-{111..114}.sf
+	arsimto ln production server-{111..114}.or
+	arsimto ln staging server-{115..117}.sf
+	arsimto ln staging server-{117..120}.or
+
+Now let's move some servers around to complicate things further:
+
+    arsimto mv Pools/memcached/server-11[4-6]* Pools/www/
+    arsimto mv Pools/www/server-10[6-7]* Pools/mysql/
 
 Now what do things look like?
 
-    arsimto ls --intersect Pools/www Pools/OR --data=name,ip,disk,ram,network
-    server-08.or	10.2.0.08	1tB	8GB	10gb
-    server-09.or	10.2.0.09	1tB	8GB	10gb
-    server-10.or	10.2.0.10	1tB	8GB	10gb
-    server-14.or	10.2.0.14	8gB	32GB	40gb
-    server-15.or	10.2.0.15	8gB	32GB	40gb
-    server-16.or	10.2.0.16	8gB	32GB	40gb
+	arsimto ls --intersect www OR --data=name,ip,disk,ram,network
+	(OR+www)
+	server-108.or	10.2.0.108	1tB	8GB	10gb
+	server-109.or	10.2.0.109	1tB	8GB	10gb
+	server-110.or	10.2.0.110	1tB	8GB	10gb
+	server-114.or	10.2.0.114	8gB	32GB	40gb
+	server-115.or	10.2.0.115	8gB	32GB	40gb
+	server-116.or	10.2.0.116	8gB	32GB	40gb
+	 - 6 assets in pool.
+	 - 1 pools.
 
 This is where an inventory management system starts to help matters. We've
 added chaos into our system, and this helps us keep track of the chaos. Our WWW
 pool is heterogenous, so we might weight the servers differently, or start
 doubling up processes.
+
+Here are a couple more queries to help us explore this inventory's topology:
+
+	arsimto ls -l -i www production SF
+	(SF+production+www) --> server-114.sf
+	 - 1 pools.
+	
+	arsimto ls -l -i production memcached
+	(memcached+production) --> server-111.or, server-111.sf, server-112.or, server-112.sf, server-113.or, server-113.sf
+	 - 1 pools.
+
+Quickly! How many production MySQL machines are there?
 
 Technical Notes
 ===============
