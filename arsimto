@@ -970,8 +970,8 @@ sub printAssetsAttributes {
 				}
 			}
 
-			# the column 'name' is special
 			if ($dataName eq 'name') {
+				# the column 'name' is special
 				if (-d "$poolDir/$assetName" && $colourisedOutput) {
 					$outLine .= $poolColour;
 				} elsif ($colourisedOutput) {
@@ -983,6 +983,17 @@ sub printAssetsAttributes {
 					$outLine .= "\"name\":\"$assetName\", ";
 				}
 				$outputCol++;
+			} elsif ($dataName eq 'pools') {
+				# the column 'pools' is also special
+				my $poolList = '';
+				my $poolFind = `find $poolDir -name '$assetName'`;
+				foreach my $onePoolDir (split (/\n/, $poolFind)) {
+					if ($onePoolDir =~ /.+\/(.+)\/(.+)$/) {
+						$poolList .= "$1,";
+					}
+				}
+				$poolList =~ s/,$//;
+				$outLine .= $poolList;
 			} else {
 				if ($colourisedOutput) { $outLine .= $dataColour; }
 

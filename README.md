@@ -285,9 +285,9 @@ FAQs
 ====
 
 ### Q: Reserved or Special Data key names?
-A: Unfortunately, yes. `name` and any name starting with two underscores (`__`,
-for example `__TYPE`) are reserved. Also `*` is reserved, though you probably
-weren't thinking of using it.
+A: Unfortunately, yes. `name`, `pools`, and any name starting with two
+underscores (`__`, for example `__TYPE`) are reserved. Also `*` is reserved,
+though you probably weren't thinking of using it.
 
 The following are special names, and I recommend you use these precise key
 names for the purpose outlined. In the future, the script might do extra
