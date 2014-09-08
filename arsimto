@@ -732,9 +732,16 @@ sub getAssetHash {
 		}
 
 		foreach my $oneAsset (@{$assetList}) {
-			$reportHash->{$oneAsset}->{parent} = $currPool;
-			$reportHash->{$oneAsset}->{poolCount}++;
 			delete $unassignedAssets->{$oneAsset};
+
+			# if we're outputting data, we don't want spurious non-Asset
+			# entries in the report
+			next if ($dataList && ! -d "$assetDir/$oneAsset");
+
+			# if it's not already a top-level pool, make its parent the current one
+			unless (defined $reportHash->{$oneAsset}->{parent}) { $reportHash->{$oneAsset}->{parent} = $currPool; }
+
+			$reportHash->{$oneAsset}->{poolCount}++;
 			push (@{$reportHash->{$currPool}->{children}}, "$oneAsset");
 
 			if (-d "$assetDir/$oneAsset") {
@@ -796,7 +803,7 @@ sub outputHashTree {
 	foreach my $parentKey (sort keys %{$hashToTraverse}) {
 		# if this is a top-level node of the hash it's a Pool, otherwise it's
 		# an Asset
-		if (-d "$poolDir/$parentKey") {
+		if ($hashToTraverse->{$parentKey}->{parent} eq $topLevel) {
 			if ($reportRows++) {
 				if ($outputMode eq 'json') {
 					print ',';
@@ -815,7 +822,7 @@ sub outputHashTree {
 				if ($dataList) {
 					print "\n";
 				}
-			} elsif ($outputMode eq 'json') {
+			} elsif ($outputMode eq 'json' && $vennMode ne 'intersection') {
 				print " \"$parentKey\":";
 			}
 
@@ -832,10 +839,10 @@ sub outputHashTree {
 				last;
 			}
 		}
+	}
 
-		if ($outputMode eq 'json') {
-			print "}\n";
-		}
+	if ($outputMode eq 'json') {
+		print "}\n";
 	}
 
 	# if they're in a terminal, tell them how many matching Pools. if they're piping
