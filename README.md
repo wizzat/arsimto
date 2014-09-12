@@ -213,8 +213,8 @@ Now let's see how things look:
 	(www) --> ++++++++++
 	 - 6 pools.
 
-If a pool points to another pool, it shows up as `(PointingPool) --> (PointedPool)` and any
-further assets are printed as `+`. To see the actual asset, do `arsimto ls Pools/PointingPool`.
+If a pool points to another pool, it shows up as `(PointingPool) --> ()` and any
+further assets are printed as `+`. To see the actual Asset or Pool, do `arsimto ls -l`.
 
 Let's further put some Assets into production, and some into staging. Note that
 Oregon and San Francisco aren't entirely symmetric here, adding some complexity
