@@ -475,11 +475,10 @@ Now let's do some timings!
 	 user	0m0.063s
 	 sys	0m0.440s
 	
-	 time arsimto rm server7171
-	  - Removed server7171 from system.
-	  real	0m0.268s
-	  user	0m0.061s
-	  sys	0m0.205s
+	time arsimto rm server-34{2..5}{2..5} >/dev/null #(16 servers)
+	real	0m5.358s
+	user	0m1.106s
+	sys	0m4.244s
 
 Note that these timings were largely coming from cache, so they represent best-case timings.
 If you are hitting SSDs, they are about 10x slower, and spinning disk should be about 100x

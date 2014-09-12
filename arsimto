@@ -253,6 +253,14 @@ sub doArgs {
 			print "Examples:\n";
 			print "  $0 rm server13\n";
 		}
+		print "\n";
+		print "rename :: \n";
+		print "  $0 rename <assetOldName> <assetNewName>\n";
+		print "  Rename an Asset from one name to another, reflecting the change in all Pools.\n";
+		if ($helpLength eq 'long') {
+			print "Examples:\n";
+			print "  $0 rename server02 websrv02\n";
+		}
 	}
 }
 
@@ -890,7 +898,7 @@ sub printPoolPlusAssetGraphic {
 					if (-d "$poolDir/$oneObject") {
 						if ($colourisedOutput) { $outputString .= $poolColour; }
 						if ($longMode) {
-							$outputString .= "($oneObject), ";
+							$outputString .= "($oneObject) ";
 						} else {
 							$outputString .= "() ";
 						}
@@ -904,7 +912,7 @@ sub printPoolPlusAssetGraphic {
 					unless (-d "$poolDir/$oneObject") {
 						if ($colourisedOutput) { $outputString .= $assetColour; }
 						if ($longMode) {
-							$outputString .= "$oneObject, ";
+							$outputString .= "$oneObject ";
 						} else {
 							$outputString .= "+";
 						}
