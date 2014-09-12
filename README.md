@@ -260,6 +260,41 @@ Here are a couple more queries to help us explore this inventory's topology:
 
 Quickly! How many production MySQL machines are there?
 
+Now let's add a bit of hierarchy into our system. Both OR and SF are in USA:
+
+	arsimto ln USA OR SF
+	 - Connected USA --> OR
+	 - Connected USA --> SF
+
+By default arsimto will recurse one level into Pools looking for more pools to
+list assets. So if you want to list all objects in the USA:
+
+	arsimto ls USA -d=name,ip
+	(OR)
+	server-101.or	10.2.0.101
+	...
+	server-120.or	10.2.0.120
+	 - 20 assets in pool.
+	 (SF)
+	server-101.sf	10.2.1.101
+	...
+	server-120.sf	10.2.1.120
+	 - 20 assets in pool.
+	 - 2 pools.
+
+But suppose you put some asset directly into USA and don't want to recurse down
+into SF and OR from USA:
+
+	arsimto ls -l -R=0 USA -d=name,cages
+	(USA)
+	 + dc01	45
+	 - 1 assets in pool.
+	 - 1 pools.
+
+Similarly, if you have a deeply-nested structure, you can specify -R=3 or beyond.
+Be careful with this. If you have a lot of pools, this can quickly become a
+performance killer. The recursion algorithm is naive.
+
 Technical Notes
 ===============
 
