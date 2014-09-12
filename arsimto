@@ -727,6 +727,11 @@ sub getAssetHash {
 		}
 	}
 
+	unless (scalar keys %{$reportHash}) {
+		print " + Cannot locate Pools [@extraArgs].\n";
+		exit 248;
+	}
+
 	# keep following Pools within Pools until we hit the base case
 	# on recursion level
 	while ($currRecurseLevel-- > 0) {
@@ -908,7 +913,7 @@ sub printPoolPlusAssetGraphic {
 					if (-d "$poolDir/$oneObject") {
 						if ($colourisedOutput) { $outputString .= $poolColour; }
 						if ($longMode) {
-							$outputString .= "($oneObject), ";
+							$outputString .= "($oneObject) ";
 						} else {
 							$outputString .= "() ";
 						}
@@ -922,7 +927,7 @@ sub printPoolPlusAssetGraphic {
 					unless (-d "$poolDir/$oneObject") {
 						if ($colourisedOutput) { $outputString .= $assetColour; }
 						if ($longMode) {
-							$outputString .= "$oneObject, ";
+							$outputString .= "$oneObject ";
 						} else {
 							$outputString .= "+";
 						}
