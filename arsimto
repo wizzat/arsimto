@@ -77,7 +77,7 @@ foreach my $arg (@ARGV) {
 	elsif ($arg =~ /^-+c(olor)*$/)              { $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
 	elsif ($arg =~ /^-+e(dge)*/)                { $edgeNodeMode = 1; }
-	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; }
+	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; $recurseLevel = 0; }
 	elsif ($arg =~ /^-+j(son)*/)                { $outputMode = 'json'; }
 	elsif ($arg =~ /^-+l(ong)*/)                { $longMode = 1; }
 	elsif ($arg =~ /^-+p(alette)*=(.+)$/)       { $colourPalette = $2; $colourisedOutput = 1; }
@@ -183,13 +183,13 @@ sub doArgs {
 		print "  -c        Or --color, output in colorized mode.\n";
 		print "  -d=...    Or --data=..., the list of data key:value entries to report on or add.\n";
 		print "  -h        Or --help. Long version help. Run without arguments for short help.\n";
-		print "  -i        Or --intersection. Output intersection of Assets in Pools listed instead of union.\n";
+		print "  -i        Or --intersection. Output intersection of Pool Assets instead of union. Implies -R=0.\n";
 		print "  -j        Or --json. Output JSON structures instead of ASCII art.\n";
 		print "  -l        Or --long. Long output for Pools/ listing.\n";
 		print "  -p        Or --pristine. Don't reformat data values to be more (human-)readable.\n";
 		print "  -p=...    Or --palette=..., the colors to output. ANSI color codes. Default is $colourPalette.\n";
 		print "  -r=...    Or --rcfile=..., read prefs from rcfile. Must be first argument. Default is $rcFile.\n";
-		print "  -R=L      Or --recurse=L, recurse L levels deeper into a nested pool hierarchy. Default is $recurseLevel.\n";
+		print "  -R=L      Or --recurse=L, recurse L levels into pool hierarchy. Default $recurseLevel. If -i, default is 0.\n";
 		print "  -u        Or --uses Output some common patterns of usage for Arsimto.\n";
 		print "  -t=...    Or --top=..., the top-level directory where Assets/ and Pools/ are stored.\n";
 		print "  -v        Verbose/debugging output\n";
