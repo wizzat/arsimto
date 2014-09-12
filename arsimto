@@ -24,6 +24,7 @@ my $longMode = 0;
 my $outputMode = 'ascii';
 my $rootDir = '';
 my $edgeNodeMode = 0;
+my $recurseLevel = 1;
 
 # colour-based variables
 my $colourisedOutput = 0;
@@ -76,11 +77,12 @@ foreach my $arg (@ARGV) {
 	elsif ($arg =~ /^-+c(olor)*$/)              { $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
 	elsif ($arg =~ /^-+e(dge)*/)                { $edgeNodeMode = 1; }
-	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; }
+	elsif ($arg =~ /^-+i(nt)*/)                 { $vennMode = 'intersection'; $recurseLevel = 0; }
 	elsif ($arg =~ /^-+j(son)*/)                { $outputMode = 'json'; }
 	elsif ($arg =~ /^-+l(ong)*/)                { $longMode = 1; }
 	elsif ($arg =~ /^-+p(alette)*=(.+)$/)       { $colourPalette = $2; $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+p(rist)*/)               { $pristineMode = 'pristine'; }
+	elsif ($arg =~ /^-+R(ecurs)*=(\d+)$/)       { $recurseLevel = $2; }
 	elsif ($arg =~ /^-+u(s)*$/)                 { doArgs('uses'); exit 0; }
 	elsif ($arg =~ /^-+t(op)*=(.+)$/)           { $rootDir = $2; }
 	elsif ($arg =~ /^-+v(erbose)*$/)            { $verbose = 1; }
@@ -181,12 +183,13 @@ sub doArgs {
 		print "  -c        Or --color, output in colorized mode.\n";
 		print "  -d=...    Or --data=..., the list of data key:value entries to report on or add.\n";
 		print "  -h        Or --help. Long version help. Run without arguments for short help.\n";
-		print "  -i        Or --intersection. Output intersection of Assets in Pools listed instead of union.\n";
+		print "  -i        Or --intersection. Output intersection of Pool Assets instead of union. Implies -R=0.\n";
 		print "  -j        Or --json. Output JSON structures instead of ASCII art.\n";
 		print "  -l        Or --long. Long output for Pools/ listing.\n";
 		print "  -p        Or --pristine. Don't reformat data values to be more (human-)readable.\n";
 		print "  -p=...    Or --palette=..., the colors to output. ANSI color codes. Default is $colourPalette.\n";
 		print "  -r=...    Or --rcfile=..., read prefs from rcfile. Must be first argument. Default is $rcFile.\n";
+		print "  -R=L      Or --recurse=L, recurse L levels into pool hierarchy. Default $recurseLevel. If -i, default is 0.\n";
 		print "  -u        Or --uses Output some common patterns of usage for Arsimto.\n";
 		print "  -t=...    Or --top=..., the top-level directory where Assets/ and Pools/ are stored.\n";
 		print "  -v        Verbose/debugging output\n";
@@ -286,13 +289,14 @@ sub updateKeepFile {
 }
 
 # return a list of entries in a dir - examples:
-#   fileList ("/a/directory", '.') - all entries
+#   fileList ("/a/directory") - all entries
+#   fileList ("/a/directory", '.') - all entries, same as previous ('.' is default)
 #   fileList ("/a/directory", '^pre.+\.ext$') - all entries of form pre*.ext
 # dotfiles are NOT shown unless explicitly asked for:
 #   fileList ("dir/name", "^\..+")
 sub fileList {
 	my $dirName = shift;
-	my $matchExp = shift;
+	my $matchExp = shift || ".";
 
 	my $dirHandle;
 	my $fileList;
@@ -532,9 +536,9 @@ sub lnAssets {
 sub listAssets {
 	# no args at all? list all pools.
 	if (!scalar @extraArgs) {
-		@extraArgs = @{fileList ($poolDir, '.')};
+		@extraArgs = @{fileList ($poolDir)};
 
-		my $buildUnassignedAssets = fileList ($assetDir, '.');
+		my $buildUnassignedAssets = fileList ($assetDir);
 		if (scalar @{$buildUnassignedAssets}) {
 			foreach my $oneAsset (@{$buildUnassignedAssets}) {
 				$unassignedAssets->{$oneAsset} = 1;
@@ -572,7 +576,7 @@ sub outputEdgesNodes {
 
 	# if no Pools were specified, get them all
 	if ($extraArgs[0] =~ /^$poolDir\/*$/) {
-		@extraArgs = @{fileList ("$poolDir", '.')};
+		@extraArgs = @{fileList ("$poolDir")};
 	}
 	if ($verbose) { print STDERR " - Building Node/Edge JSON for " . scalar @extraArgs . " pools.\n"; }
 
@@ -600,7 +604,7 @@ sub outputEdgesNodes {
 	# every Asset/Pool inside a Pool creates an Edge
 	foreach my $pool (@extraArgs) {
 		if ($verbose) { print STDERR " - Building Edge list for $pool\n"; }
-		foreach my $asset (@{fileList ("$poolDir/$pool", '.')}) {
+		foreach my $asset (@{fileList ("$poolDir/$pool")}) {
 			if ($nodeLookup->{$asset}->{index} && -d "$poolDir/$pool/$asset") {
 				# TODO: Collect weight/type/direction from poolDir/pool/asset/... set of attributes
 				$edgeList->{$edgeIndex}->{weight} = 5;
@@ -663,10 +667,10 @@ sub collectAssetList {
 			my @assetsFound;
 			if (-d $listDest) {
 				# if they pass an actual dir that exists
-				@assetsFound = @{fileList ("$listDest", '.')};
+				@assetsFound = @{fileList ("$listDest")};
 			} elsif (-d "$poolDir/$listDest") {
 				# pool name sans dir prefix
-				@assetsFound = @{fileList ("$poolDir/$listDest", '.')};
+				@assetsFound = @{fileList ("$poolDir/$listDest")};
 			} elsif (-d "$assetDir/$listDest") {
 				# they passed an asset name sans dir prefix
 				$assetHash->{$listDest} = 1;
@@ -712,6 +716,7 @@ sub collectAssetList {
 
 sub getAssetHash {
 	my $reportHash;
+	my $currRecurseLevel = $recurseLevel;
 
 	# collect Pool names from @extraArgs, some of which might be children of
 	# others
@@ -730,6 +735,24 @@ sub getAssetHash {
 		}
 	}
 
+	unless (scalar keys %{$reportHash}) {
+		print " + Cannot locate Pools [@extraArgs].\n";
+		exit 248;
+	}
+
+	# keep following Pools within Pools until we hit the base case
+	# on recursion level
+	while ($currRecurseLevel-- > 0) {
+		foreach my $onePool (keys $reportHash) {
+			foreach my $oneDeeperEntry (@{fileList ("$poolDir/$onePool")}) {
+				if (-d "$poolDir/$oneDeeperEntry") {
+					push (@{$poolList}, $oneDeeperEntry);
+					$reportHash->{$oneDeeperEntry}->{parent} = $topLevel;
+				}
+			}
+		}
+	}
+
 	# second collect all assets inside the top-level pool names and if they
 	# match top-level pool, create link between them in the hash
 	foreach my $currPool (@{$poolList}) {
@@ -741,7 +764,7 @@ sub getAssetHash {
 		# now collect a list of Assets inside the Pool
 		my @assetList;
 		if (-d "$poolDir/$currPool") {
-			@assetList = @{fileList ("$poolDir/$currPool", '.')};
+			@assetList = @{fileList ("$poolDir/$currPool")};
 		} else {
 			if ($verbose) { print STDERR " - $currPool is not Pool - adding only self into assetList\n"; }
 			push (@assetList, $currPool);
