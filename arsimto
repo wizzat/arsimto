@@ -732,84 +732,86 @@ sub getAssetHash {
 			# ah, this is an Asset, not a Pool...
 			if ($verbose) { print STDERR " - $onePool is Asset - not setting top-level Pool\n"; }
 			push (@{$poolList}, $onePool);
+			$reportHash->{$onePool}->{parent} = 0;
 		}
 	}
 
-	unless (scalar keys %{$reportHash}) {
-		print " + Cannot locate Pools [@extraArgs].\n";
+	if (scalar keys %{$reportHash}) {
+		# keep following Pools within Pools until we hit the base case
+		# on recursion level
+		while ($currRecurseLevel-- > 0) {
+			foreach my $onePool (keys $reportHash) {
+				foreach my $oneDeeperEntry (@{fileList ("$poolDir/$onePool")}) {
+					if (-d "$poolDir/$oneDeeperEntry") {
+						push (@{$poolList}, $oneDeeperEntry);
+						$reportHash->{$oneDeeperEntry}->{parent} = $topLevel;
+					}
+				}
+			}
+		}
+
+		# second collect all assets inside the top-level pool names and if they
+		# match top-level pool, create link between them in the hash
+		foreach my $currPool (@{$poolList}) {
+			if ($verbose) { print STDERR " - Pool $currPool getting members\n"; }
+			# since there might be duplicate Pool in the poolList, we move on if
+			# we've already processed this Pool before
+			next if (defined $reportHash->{$currPool}->{children} && scalar @{$reportHash->{$currPool}->{children}});
+
+			# now collect a list of Assets inside the Pool
+			my @assetList;
+			if (-d "$poolDir/$currPool") {
+				@assetList = @{fileList ("$poolDir/$currPool")};
+			} else {
+				if ($verbose) { print STDERR " - $currPool is not Pool - adding only self into assetList\n"; }
+				push (@assetList, $currPool);
+			}
+
+			foreach my $oneAsset (@assetList) {
+				delete $unassignedAssets->{$oneAsset};
+
+				# if we're outputting data, we don't want spurious non-Asset
+				# entries in the report
+				next if ($dataList && ! -d "$assetDir/$oneAsset");
+
+				# if it's not already a top-level pool, make its parent the current one
+				unless (defined $reportHash->{$oneAsset}->{parent}) { $reportHash->{$oneAsset}->{parent} = $currPool; }
+
+				$reportHash->{$oneAsset}->{poolCount}++;
+				push (@{$reportHash->{$currPool}->{children}}, "$oneAsset");
+
+				if (-d "$assetDir/$oneAsset") {
+					# if it's an actual Asset, collect its info
+					if ($verbose) { print STDERR " - Pool $currPool -> $oneAsset - adding attributes:"; }
+					foreach my $oneAttr (@{getDataFromAsset ($oneAsset)}) {
+						if ($verbose) { print STDERR "."; }
+						if ($oneAttr =~ /^(.+?):(.+)$/) {
+							my $dataName = $1;
+							my $dataVal = $2;
+
+							# if this data matches the list they want, put into report
+							if ($dataList eq '*' || $dataList =~ /\b$dataName\b/) {
+								if (!$pristineMode && $dataVal =~ /^(\d+)$/) {
+									$dataVal = addCommas($dataVal);
+								}
+								$reportHash->{$oneAsset}->{attrs}->{$dataName} = $dataVal;
+							}
+						}
+					}
+					if ($verbose) { print STDERR "\n"; }
+				}
+			}
+		}
+
+		# build a list of assets that didn't show up in any pools
+		foreach my $oneAsset (keys %{$unassignedAssets}) {
+			push (@{$reportHash->{'00-UNLINKED-ASSETS'}->{children}}, "$oneAsset");
+		}
+	} else {
+        print " + Cannot locate Pools [@extraArgs].\n";
 		exit 248;
 	}
 
-	# keep following Pools within Pools until we hit the base case
-	# on recursion level
-	while ($currRecurseLevel-- > 0) {
-		foreach my $onePool (keys $reportHash) {
-			foreach my $oneDeeperEntry (@{fileList ("$poolDir/$onePool")}) {
-				if (-d "$poolDir/$oneDeeperEntry") {
-					push (@{$poolList}, $oneDeeperEntry);
-					$reportHash->{$oneDeeperEntry}->{parent} = $topLevel;
-				}
-			}
-		}
-	}
-
-	# second collect all assets inside the top-level pool names and if they
-	# match top-level pool, create link between them in the hash
-	foreach my $currPool (@{$poolList}) {
-		if ($verbose) { print STDERR " - Pool $currPool getting members\n"; }
-		# since there might be duplicate Pool in the poolList, we move on if
-		# we've already processed this Pool before
-		next if (defined $reportHash->{$currPool}->{children} && scalar @{$reportHash->{$currPool}->{children}});
-
-		# now collect a list of Assets inside the Pool
-		my @assetList;
-		if (-d "$poolDir/$currPool") {
-			@assetList = @{fileList ("$poolDir/$currPool")};
-		} else {
-			if ($verbose) { print STDERR " - $currPool is not Pool - adding only self into assetList\n"; }
-			push (@assetList, $currPool);
-		}
-
-		foreach my $oneAsset (@assetList) {
-			delete $unassignedAssets->{$oneAsset};
-
-			# if we're outputting data, we don't want spurious non-Asset
-			# entries in the report
-			next if ($dataList && ! -d "$assetDir/$oneAsset");
-
-			# if it's not already a top-level pool, make its parent the current one
-			unless (defined $reportHash->{$oneAsset}->{parent}) { $reportHash->{$oneAsset}->{parent} = $currPool; }
-
-			$reportHash->{$oneAsset}->{poolCount}++;
-			push (@{$reportHash->{$currPool}->{children}}, "$oneAsset");
-
-			if (-d "$assetDir/$oneAsset") {
-				# if it's an actual Asset, collect its info
-				if ($verbose) { print STDERR " - Pool $currPool -> $oneAsset - adding attributes:"; }
-				foreach my $oneAttr (@{getDataFromAsset ($oneAsset)}) {
-					if ($verbose) { print STDERR "."; }
-					if ($oneAttr =~ /^(.+?):(.+)$/) {
-						my $dataName = $1;
-						my $dataVal = $2;
-
-						# if this data matches the list they want, put into report
-						if ($dataList eq '*' || $dataList =~ /\b$dataName\b/) {
-							if (!$pristineMode && $dataVal =~ /^(\d+)$/) {
-								$dataVal = addCommas($dataVal);
-							}
-							$reportHash->{$oneAsset}->{attrs}->{$dataName} = $dataVal;
-						}
-					}
-				}
-				if ($verbose) { print STDERR "\n"; }
-			}
-		}
-	}
-
-	# build a list of assets that didn't show up in any pools
-	foreach my $oneAsset (keys %{$unassignedAssets}) {
-		push (@{$reportHash->{'00-UNLINKED-ASSETS'}->{children}}, "$oneAsset");
-	}
 
 	return ($reportHash);
 }
