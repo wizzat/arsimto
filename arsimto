@@ -173,6 +173,9 @@ sub doArgs {
 		print "Change hostname on the hosts for a given pool. Assumes you've added assets with dnsname:DNS-NAME.\n";
 		print q#  arsimto ls POOL1 -d=ip,dnsname | awk '{print "echo "$1" ; ssh "$1" \"sudo bash -c '\''sudo hostname "$2" && hostname > /etc/hostname'\''\""}' | sh# . "\n";
 		print "\n";
+		print "Some aliases you might want to define to list Pools:\n";
+		print "  alias arl='arsimto ls -l '\n";
+		print "  alias arll='arsimto ls -l -d=name '\n";
 	} else {
 		print "usage: $0 <command> [<assetObj>|<poolObj>] [<assetObj>|<poolObj>...]\n";
 		print "  [-v|--verboase] [-h|--help] [-d=|--data=<dataList>] [-p|--pristine]\n";
@@ -587,6 +590,7 @@ sub outputEdgesNodes {
 	foreach my $pool (@extraArgs) {
 		$nodeLookup->{$pool}->{index} = $nodeIndex;
 		$nodeLookup->{$pool}->{type} = 'Pool';
+		$nodeLookup->{$pool}->{group} = 1;
 		$nodeList->[$nodeIndex] = $pool;
 		$nodeIndex++;
 	}
@@ -596,6 +600,7 @@ sub outputEdgesNodes {
 		unless ($nodeLookup->{$asset}->{index}) {
 			$nodeLookup->{$asset}->{index} = $nodeIndex;
 			$nodeLookup->{$asset}->{type} = 'Asset';
+			$nodeLookup->{$asset}->{group} = 2;
 			$nodeList->[$nodeIndex] = $asset;
 			$nodeIndex++;
 		}
@@ -634,7 +639,7 @@ sub outputEdgesNodes {
 		} else {
 			print "    ";
 		}
-		print qq#{ "name":"$nodeList->[$i]", "group":1 }\n#;
+		print qq#{ "name":"$nodeList->[$i]", "group":$nodeLookup->{$nodeList->[$i]}->{group} }\n#;
 	}
 	$commaOutput=0;
 	print qq#  ]\n ,"links":[\n#;
@@ -767,7 +772,7 @@ sub getAssetHash {
 				push (@assetList, $currPool);
 			}
 
-			foreach my $oneAsset (@assetList) {
+			foreach my $oneAsset (sort @assetList) {
 				delete $unassignedAssets->{$oneAsset};
 
 				# if we're outputting data, we don't want spurious non-Asset
@@ -1053,7 +1058,7 @@ sub printAssetsAttributes {
 					} elsif ($outputMode eq 'json') {
 						$outLine .= "\"name\":\"$assetName\", ";
 					}
-					foreach my $key (keys %{$attrHash->{$assetName}->{attrs}}) {
+					foreach my $key (sort keys %{$attrHash->{$assetName}->{attrs}}) {
 						if ($outputMode eq 'ascii') {
 							if ($colourisedOutput) { $outLine .= $regularColour; }
 							$outLine .= "$key:";
