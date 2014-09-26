@@ -178,7 +178,7 @@ sub doArgs {
 		print "  alias arll='arsimto ls -l -d=name '\n";
 	} else {
 		print "usage: $0 <command> [<assetObj>|<poolObj>] [<assetObj>|<poolObj>...]\n";
-		print "  [-v|--verboase] [-h|--help] [-d=|--data=<dataList>] [-p|--pristine]\n";
+		print "  [-v|--verbose] [-h|--help] [-d=|--data=<dataList>] [-p|--pristine]\n";
 		print "  [-c|--color] [-l|--long] [-p=|--palette=<p1,p2,p3,p4,p5>]\n";
 		print "  [-r=|--rcfile=<rcFile>] [d=|--directory=<rootInventoryDir>]\n";
 		print "\n";
@@ -495,20 +495,35 @@ sub rmAssets {
 
 # move an asset from one pool to another
 sub mvAssets {
-	my $numMvArgs = scalar @extraArgs;
-	my $destPool = $extraArgs[$numMvArgs - 1];
+	my $destPool = pop(@extraArgs);
 	$destPool =~ s/\/$//g;
 
-	foreach my $assetToMove (@extraArgs) {
-		# these are symlinks we're moving around, if there's a trailing slash,
-		# then GNU mv will hate on us
-		$assetToMove =~ s/\/$//g;
-
-		if (-d $assetToMove && -d $destPool && $assetToMove ne $destPool) {
-			system ("mv $assetToMove $destPool");
-			print " - Moved Asset $assetToMove --> $destPool\n";
+	unless (-d $destPool) {
+		unless (-d "$poolDir/$destPool") {
+			print STDERR " E Cannot find pool $destPool or $poolDir/$destPool!\n";
+			exit 253;
 		}
+		$destPool = "$poolDir/$destPool";
 	}
+
+	# remove it from all Pools it currently be in
+	foreach my $assetToMove (@extraArgs) {
+		print " - Removing $assetToMove from Pools: ";
+		my @poolsRemoval =  split (/\n/, `find $poolDir -mindepth 1 -maxdepth 2 -name '$assetToMove' -print`);
+		my $toComma = 0;
+		foreach my $onePool (@poolsRemoval) {
+			if ($onePool =~ /$poolDir\/(.+?)\/$assetToMove/) {
+				if ($toComma++ > 0) { print ", "; }
+				print "$1";
+			}
+		}
+		print "\n";
+		system ("find $poolDir -mindepth 1 -maxdepth 2 -name '$assetToMove' -type d -exec rm -rf {} \\;");
+	}
+
+	# now link it into the destination Pool
+	unshift (@extraArgs, $destPool);
+	lnAssets();
 }
 
 # simply connect assets to each other
