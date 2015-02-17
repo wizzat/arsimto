@@ -434,7 +434,9 @@ sub addAssets {
 				}
 				if ($iFace =~ /inet addr:\s*([0-9\.]+)\s+/s) {
 					$ifaceInetAddr = $1;
-					addDataToAsset ($asset, "$ifaceName-inet:$ifaceInetAddr");
+					if ($ifaceName ne 'lo') {
+					    addDataToAsset ($asset, "$ifaceName-inet:$ifaceInetAddr");
+					}
 				}
 				if ($iFace =~ /inet6 addr:\s*([0-9a-f\:\/]+)\s+/s) {
 					$ifaceInet6Addr = $1;
@@ -452,7 +454,7 @@ sub addAssets {
 			if ($extIP =~ /has address (.+)$/) {
 				$extIP = $1;
 			} else {
-				$extIP = 'UNKNOWN';
+				$extIP = '';
 			}
 
 			if ($verbose) { print STDERR "   - Collecting CPUcount\n"; }
@@ -469,7 +471,7 @@ sub addAssets {
 			}
 
 			# if we collected a piece of data, put it into the asset
-			if ($extIP)    { addDataToAsset ($asset, "ip:$extIP"); }
+			if ($extIP)    { addDataToAsset ($asset, "ip:$extIP"); } else { addDataToAsset ($asset, "ip:$intIP"); }
 			if ($cpuCount) { addDataToAsset ($asset, "cpus:$cpuCount"); }
 			if ($memory)   { addDataToAsset ($asset, "mem$memUnits:$memory"); }
 		}
