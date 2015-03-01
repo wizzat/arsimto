@@ -1,5 +1,6 @@
 #!/usr/bin/perl
-# vim: set noexpandtab:
+
+# vim: set noexpandtab sw=4 ts=4:
 # --
 # A recent battle with vim and a Go program finally settled this for me.
 # Tabs for indent, spaces for formatting. If you change your shiftwidth and
@@ -86,7 +87,7 @@ while(1)
 	#my $name = gethostbyaddr($iaddr, AF_INET);
 
 	my $sessionNum = int(rand(999999999));
-    doLog (" - sess=$sessionNum ; connection accepted");
+	doLog (" - sess=$sessionNum ; connection accepted");
 
 	# get from client, set to client!
 	my $input = <$client>;
