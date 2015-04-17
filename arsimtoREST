@@ -98,7 +98,7 @@ while(1)
 	if ($arsimtoCmdLine =~ /^ERR/) {
 		$output = $arsimtoCmdLine;
 	} else {
-		$output = `arsimto $arsimtoCmdLine  2>&1`;
+		$output = `arsimto $arsimtoCmdLine 2>&1 | cat`;
 	}
 
 	# determine Content-Length
@@ -138,10 +138,16 @@ sub doArgs {
 	}
 
 	if ($helpLength eq 'long') {
+		print "The daemon sents logging info to STDERR. Redirect to your preferred log file.\n";
+		print "\n";
 		print "  -h        Long version help. Run without arguments for short help.\n";
-		print "  -p        Or --port. The port to listen on for REST calls.\n";
+		print "  -i        IP address to listen to. Default is 0.0.0.0.\n";
+		print "  -p        Or --port. The port to listen on for REST calls. Default 14321.\n";
 		print "  -v        Verbose/debugging output\n";
 		print "\n";
+		print "Example:\n";
+		print "\n";
+		print "$0 --port=14322 --ip=127.0.0.1 >/var/log/arsimtoREST.log 2>&1 &\n";
 	}
 }
 

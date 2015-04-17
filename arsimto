@@ -863,6 +863,8 @@ sub outputHashTree {
 			if ($colourisedOutput) { print "$regularColour"; }
 		} elsif ($outputMode eq 'json') {
 			print "  \"$poolName\":";
+		} else {
+			print "$poolName";
 		}
 	}
 	foreach my $parentKey (sort keys %{$hashToTraverse}) {
@@ -889,6 +891,8 @@ sub outputHashTree {
 				}
 			} elsif ($outputMode eq 'json' && $vennMode ne 'intersection') {
 				print " \"$parentKey\":";
+			} elsif ($dataList eq '') {
+				print " $parentKey";
 			}
 
 			if ($dataList) {
