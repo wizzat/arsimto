@@ -98,7 +98,7 @@ while(1)
 	if ($arsimtoCmdLine =~ /^ERR/) {
 		$output = $arsimtoCmdLine;
 	} else {
-		$output = `arsimto $arsimtoCmdLine 2>&1 | cat`;
+		$output = `arsimto $arsimtoCmdLine 2>&1`;
 	}
 
 	# determine Content-Length

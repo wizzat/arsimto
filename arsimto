@@ -41,7 +41,7 @@ my $cmdList = "add, ln, ls, mv, rename, rm, help";
 # a constant meaning an entry is at the top of a tree
 my $topLevel = '__TOP_LEVEL_NO_PARENT';
 my $vennMode = 'union';
-my $pristineMode = 0;
+my $pristineMode = 'pristine';
 
 # for full Assets list, show unassigned ones at the end
 my $unassignedAssets;
@@ -81,7 +81,7 @@ foreach my $arg (@ARGV) {
 	elsif ($arg =~ /^-+j(son)*/)                { $outputMode = 'json'; }
 	elsif ($arg =~ /^-+l(ong)*/)                { $longMode = 1; }
 	elsif ($arg =~ /^-+p(alette)*=(.+)$/)       { $colourPalette = $2; $colourisedOutput = 1; }
-	elsif ($arg =~ /^-+p(rist)*/)               { $pristineMode = 'pristine'; }
+	elsif ($arg =~ /^-+o(rnat)*/)               { $pristineMode = 0; }
 	elsif ($arg =~ /^-+R(ecurs)*=(\d+)$/)       { $recurseLevel = $2; }
 	elsif ($arg =~ /^-+u(s)*$/)                 { doArgs('uses'); exit 0; }
 	elsif ($arg =~ /^-+t(op)*=(.+)$/)           { $rootDir = $2; }
@@ -178,7 +178,7 @@ sub doArgs {
 		print "  alias arll='arsimto ls -l -d=name '\n";
 	} else {
 		print "usage: $0 <command> [<assetObj>|<poolObj>] [<assetObj>|<poolObj>...]\n";
-		print "  [-v|--verbose] [-h|--help] [-d=|--data=<dataList>] [-p|--pristine]\n";
+		print "  [-v|--verbose] [-h|--help] [-d=|--data=<dataList>] [-o|--ornate]\n";
 		print "  [-c|--color] [-l|--long] [-p=|--palette=<p1,p2,p3,p4,p5>]\n";
 		print "  [-r=|--rcfile=<rcFile>] [d=|--directory=<rootInventoryDir>]\n";
 		print "\n";
@@ -189,7 +189,7 @@ sub doArgs {
 		print "  -i        Or --intersection. Output intersection of Pool Assets instead of union. Implies -R=0.\n";
 		print "  -j        Or --json. Output JSON structures instead of ASCII art.\n";
 		print "  -l        Or --long. Long output for Pools/ listing.\n";
-		print "  -p        Or --pristine. Don't reformat data values to be more (human-)readable.\n";
+		print "  -o        Or --ornate. Reformat data values to be more (human-)readable with commas etc.\n";
 		print "  -p=...    Or --palette=..., the colors to output. ANSI color codes. Default is $colourPalette.\n";
 		print "  -r=...    Or --rcfile=..., read prefs from rcfile. Must be first argument. Default is $rcFile.\n";
 		print "  -R=L      Or --recurse=L, recurse L levels into pool hierarchy. Default $recurseLevel. If -i, default is 0.\n";
