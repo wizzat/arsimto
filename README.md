@@ -7,6 +7,46 @@ Impetus
 I looked at OpenDCIM, Cobbler, Collins, Clusto, Helix. Every tool seemed
 difficult or overkill for the problem I'm solving.
 
+Examples
+========
+
+Generate DNS records for all the Staging Couchbase servers:
+
+    $ arsimto ls -i Pools/Couchbases/ Pools/Staging/ -d='name,"IN","CNAME",ip'
+    couch-1.bit	IN	CNAME	192.168.0.5
+    couch-2.bit	IN	CNAME	192.168.0.1
+    couch-3.bit	IN	CNAME	192.168.0.3
+
+Generate Ansible hosts file for all Production MySQL servers:
+
+    $ echo "[RunOnTheseHosts]" ; \
+		arsimto ls -p -i Pools/Production/ Pools/MySQLs/ -d=ip,memkB,dnsname \
+		| awk '{print $1"   mem="$2"   dnsname="$3}'
+	[RunOnTheseHosts]
+	192.168.1.212     mem=70196916   dnsname=mysql1a.dc.tld
+	192.168.96.109    mem=70196916   dnsname=mysql1b.dc.tld
+	192.168.96.125    mem=70196916   dnsname=mysql1c.dc.tld
+	192.168.254.152   mem=70196916   dnsname=mysql2a.dc.tld
+	192.168.121.239   mem=70196916   dnsname=mysql2b.dc.tld
+	192.168.18.82     mem=70196916   dnsname=mysql2c.dc.tld
+	192.168.254.206   mem=70197168   dnsname=mysql3a.dc.tld
+	192.168.254.149   mem=70197168   dnsname=mysql3b.dc.tld
+	192.168.254.139   mem=70197168   dnsname=mysql3c.dc.tld
+
+Re-collect all data for a given set of hosts (maybe you replaced some hardware).
+Remove the final `| sh` portion if you want to see what it would do without actually
+doing it:
+
+	arsimto ls -i Pools/Production/ Pools/Memcached/ -d=name,ip \
+	    | awk '{print "arsimto add "$1" --collect="$2}' \
+	    | sh
+
+Change the hostname of all hosts in a Pool to match the inventory:
+
+	arsimto ls Pools/Memcached/ -d=ip,dnsname \
+	   | awk '{print "echo "$1" ; ssh "$1" \"sudo hostname "$2"\""}' \
+	   | sh
+
 The Problem
 ===========
 
@@ -117,46 +157,6 @@ The arsimtoREST Helper
  3. Add `--top=/path/to/arsimto/inventory/` into the .arsimtorc.
  4. Execute `./arsimtoREST --port=54321 >logfile 2>&1 &`.
  5. Submit an issue if this doesn't work.
-
-Examples
-========
-
-Generate DNS records for all the Staging Couchbase servers:
-
-    $ arsimto ls -i Pools/Couchbases/ Pools/Staging/ -d='name,"IN","CNAME",ip'
-    couch-1.bit	IN	CNAME	192.168.0.5
-    couch-2.bit	IN	CNAME	192.168.0.1
-    couch-3.bit	IN	CNAME	192.168.0.3
-
-Generate Ansible hosts file for all Production MySQL servers:
-
-    $ echo "[RunOnTheseHosts]" ; \
-		arsimto ls -p -i Pools/Production/ Pools/MySQLs/ -d=ip,memkB,dnsname \
-		| awk '{print $1"   mem="$2"   dnsname="$3}'
-	[RunOnTheseHosts]
-	192.168.1.212     mem=70196916   dnsname=mysql1a.dc.tld
-	192.168.96.109    mem=70196916   dnsname=mysql1b.dc.tld
-	192.168.96.125    mem=70196916   dnsname=mysql1c.dc.tld
-	192.168.254.152   mem=70196916   dnsname=mysql2a.dc.tld
-	192.168.121.239   mem=70196916   dnsname=mysql2b.dc.tld
-	192.168.18.82     mem=70196916   dnsname=mysql2c.dc.tld
-	192.168.254.206   mem=70197168   dnsname=mysql3a.dc.tld
-	192.168.254.149   mem=70197168   dnsname=mysql3b.dc.tld
-	192.168.254.139   mem=70197168   dnsname=mysql3c.dc.tld
-
-Re-collect all data for a given set of hosts (maybe you replaced some hardware).
-Remove the final `| sh` portion if you want to see what it would do without actually
-doing it:
-
-	arsimto ls -i Pools/Production/ Pools/Memcached/ -d=name,ip \
-		| awk '{print "arsimto add "$1" --collect="$2}' \
-		| sh
-
-Change the hostname of all hosts in a Pool to match the inventory:
-
-	arsimto ls Pools/Memcached/ -d=ip,dnsname \
-	   | awk '{print "echo "$1" ; ssh "$1" \"sudo hostname "$2"\""}' \
-	   | sh
 
 Tutorial
 ========
