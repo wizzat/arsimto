@@ -72,7 +72,6 @@ if (open (IFILE, "< $rcFile")) {
 # parse input arguments. put anything unparsed onto @extraArgs
 foreach my $arg (@ARGV) {
 	if ($arg =~ /^-+h(elp)*$/)                  { doArgs('long'); exit 0; }
-	elsif ($arg =~ /^-+a(ssets)*=(.+)$/)        { $assetList = $2; }
 	elsif ($arg =~ /^-+c(ollect)*=(.+)$/)       { $collectURI = $2; }
 	elsif ($arg =~ /^-+c(olor)*$/)              { $colourisedOutput = 1; }
 	elsif ($arg =~ /^-+d(ata)*=(.+)$/)          { $dataList = $2; }
@@ -864,7 +863,7 @@ sub outputHashTree {
 		} elsif ($outputMode eq 'json') {
 			print "  \"$poolName\":";
 		} else {
-			print "$poolName";
+			print "$poolName\n";
 		}
 	}
 	foreach my $parentKey (sort keys %{$hashToTraverse}) {
