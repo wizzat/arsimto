@@ -450,8 +450,8 @@ sub addAssets {
 			}
 
 			if ($verbose) { print STDERR "   - Collecting extIP\n"; }
-			my $extIP=`host -t a $collectHost`;
-			if ($extIP =~ /has address (.+)$/) {
+			my $extIP=`ping -c 1 $collectHost`;
+			if ($extIP =~ /bytes from ([\d,\.]+):/) {
 				$extIP = $1;
 			} else {
 				$extIP = '';
