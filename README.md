@@ -59,8 +59,9 @@ I want to ask:
 2. What is some data about the asset?
 
 A concrete example, since the above might be difficult to understand: I want
-a list of all Production Database servers in Oregon along with their IP
-addresses and total RAM configured on the system.
+a list of all Production Database servers in Oregon (as opposed to, say, all
+Staging Apache servers in Oregon or all Production Database servers in San
+Francisco) along with their IP addresses and total RAM configured on the system.
 
 This would help me decide what further scripts should be run on that
 intersection to tie the output of the tool into other tools like Nagios,
